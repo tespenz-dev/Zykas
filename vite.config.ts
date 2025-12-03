@@ -8,6 +8,7 @@ export default defineConfig({
     host: true, // Listen on all addresses
     port: 3000,
   },
+  base: '/',
   build: {
     outDir: 'dist',
     sourcemap: false, // Disable sourcemaps in production for smaller build
