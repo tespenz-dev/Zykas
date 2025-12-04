@@ -1,6 +1,5 @@
 
 
-
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { AppAction, AppState, TableStatus, Transaction, ProductCategory } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
@@ -12,6 +11,10 @@ const initialState: AppState = {
   cart: [],
   transactions: [],
   users: MOCK_USERS,
+  settings: {
+    googleScriptUrl: '',
+    storeName: 'Cue & Brew'
+  }
 };
 
 // Changed version to V3 to apply table structure changes
@@ -36,7 +39,10 @@ const loadState = (defaultState: AppState): AppState => {
              ...t,
              hourlyRate: t.hourlyRate || BILLIARD_HOURLY_RATE
         }));
-        return { ...parsed, tables: migratedTables };
+        // Ensure settings exist
+        const migratedSettings = parsed.settings || { googleScriptUrl: '', storeName: 'Cue & Brew' };
+        
+        return { ...parsed, tables: migratedTables, settings: migratedSettings };
       }
     }
   } catch (e) {
@@ -319,6 +325,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'REMOVE_USER':
       return { ...state, users: state.users.filter(u => u.id !== action.payload) };
+
+    case 'UPDATE_SETTINGS':
+        return { ...state, settings: { ...state.settings, ...action.payload } };
+
+    case 'IMPORT_DATA':
+        return { ...action.payload, user: state.user }; // Keep current logged in user
 
     case 'RESET_APP':
       localStorage.removeItem(STORAGE_KEY);

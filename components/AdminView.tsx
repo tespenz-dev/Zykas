@@ -1,9 +1,11 @@
 
+
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload } from 'lucide-react';
-import { Role, ProductCategory } from '../types';
+import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link } from 'lucide-react';
+import { Role, ProductCategory, AppState } from '../types';
 
 export const AdminView: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -12,6 +14,10 @@ export const AdminView: React.FC = () => {
   
   // Audit State
   const [physicalStocks, setPhysicalStocks] = useState<Record<string, string>>({});
+
+  // Sync State
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [scriptUrl, setScriptUrl] = useState(state.settings?.googleScriptUrl || '');
 
   // Chart Data Preparation
   const transactions = state.transactions;
@@ -82,6 +88,62 @@ export const AdminView: React.FC = () => {
     
     // Reset input
     event.target.value = '';
+  };
+
+  const handleSaveScriptUrl = () => {
+      dispatch({ type: 'UPDATE_SETTINGS', payload: { googleScriptUrl: scriptUrl } });
+      alert('URL berhasil disimpan.');
+  };
+
+  const handleCloudUpload = async () => {
+      if (!state.settings?.googleScriptUrl) {
+          alert('Mohon isi URL Google Script terlebih dahulu.');
+          return;
+      }
+      setIsSyncing(true);
+      try {
+          const response = await fetch(state.settings.googleScriptUrl, {
+              method: 'POST',
+              mode: 'no-cors', // Google Scripts often require no-cors for simple posts without complex headers
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(state)
+          });
+          // Since no-cors is opaque, we assume success if no network error
+          alert('Data berhasil dikirim ke Google Cloud (Drive/Sheets).');
+      } catch (error) {
+          console.error(error);
+          alert('Gagal upload: ' + error);
+      } finally {
+          setIsSyncing(false);
+      }
+  };
+
+  const handleCloudDownload = async () => {
+      if (!state.settings?.googleScriptUrl) {
+          alert('Mohon isi URL Google Script terlebih dahulu.');
+          return;
+      }
+      setIsSyncing(true);
+      try {
+          const response = await fetch(state.settings.googleScriptUrl);
+          const data = await response.json();
+          
+          if (data && data.products && data.tables) {
+               if(confirm(`Data ditemukan dari Cloud (Tanggal: ${new Date(data.transactions[0]?.timestamp || Date.now()).toLocaleDateString()}). Timpa data lokal?`)) {
+                   dispatch({ type: 'IMPORT_DATA', payload: data as AppState });
+                   alert('Sinkronisasi Berhasil!');
+               }
+          } else {
+              alert('Format data dari cloud tidak valid.');
+          }
+      } catch (error) {
+          console.error(error);
+          alert('Gagal download. Pastikan script URL benar dan sudah di-deploy sebagai "Anyone".');
+      } finally {
+          setIsSyncing(false);
+      }
   };
 
   const handlePhysicalStockChange = (id: string, value: string) => {
@@ -307,12 +369,66 @@ export const AdminView: React.FC = () => {
 
   const renderSystem = () => (
     <div className="space-y-6 pb-20 md:pb-0">
-       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Database size={24}/> Database System</h3>
-          <p className="text-slate-400 mb-6">
-              Aplikasi ini menggunakan penyimpanan lokal (di perangkat). Agar data sama di semua perangkat (Tablet/Laptop), 
-              lakukan <strong>Backup</strong> di perangkat utama lalu <strong>Restore</strong> di perangkat lain.
+       
+       {/* Cloud Sync Section */}
+       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+              <Cloud size={120} />
+          </div>
+          
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+             <Cloud className="text-blue-500" /> Cloud Sync (Google Drive/Sheets)
+          </h3>
+          <p className="text-slate-400 text-sm mb-6 max-w-2xl">
+              Hubungkan aplikasi dengan Google Apps Script untuk menyimpan data secara online.
+              Ini memungkinkan sinkronisasi data antara Laptop, Tablet, dan HP.
           </p>
+          
+          <div className="mb-6">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Google Apps Script Web App URL</label>
+              <div className="flex gap-2">
+                  <input 
+                      type="text" 
+                      value={scriptUrl}
+                      onChange={(e) => setScriptUrl(e.target.value)}
+                      placeholder="https://script.google.com/macros/s/..."
+                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
+                  />
+                  <button 
+                      onClick={handleSaveScriptUrl}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold"
+                  >
+                      <CheckCircle size={20} />
+                  </button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">
+                  *Pastikan script dideploy sebagai "Web App" dengan akses "Anyone (Siapa Saja)".
+              </p>
+          </div>
+
+          <div className="flex gap-4">
+              <button 
+                  onClick={handleCloudUpload}
+                  disabled={isSyncing}
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/20"
+              >
+                  {isSyncing ? <RefreshCw className="animate-spin" /> : <Upload />} 
+                  Upload ke Cloud
+              </button>
+              <button 
+                  onClick={handleCloudDownload}
+                  disabled={isSyncing}
+                  className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20"
+              >
+                  {isSyncing ? <RefreshCw className="animate-spin" /> : <Download />} 
+                  Ambil dari Cloud
+              </button>
+          </div>
+       </div>
+
+       {/* Local Backup Section */}
+       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Database size={24}/> Backup Lokal (File)</h3>
           
           <input 
              type="file" 
@@ -325,16 +441,16 @@ export const AdminView: React.FC = () => {
           <div className="flex flex-col md:flex-row gap-4">
               <button 
                   onClick={handleExport}
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600"
               >
-                  <Download size={20} /> Backup Data (Export)
+                  <Download size={20} /> Backup File (.json)
               </button>
               
               <button 
                   onClick={handleImportClick}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600"
               >
-                  <Upload size={20} /> Restore Data (Import)
+                  <Upload size={20} /> Restore File (.json)
               </button>
 
               <button 
@@ -343,9 +459,6 @@ export const AdminView: React.FC = () => {
               >
                   <AlertTriangle size={20} /> Factory Reset
               </button>
-          </div>
-          <div className="mt-4 p-4 bg-rose-900/20 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
-             <strong>Perhatian:</strong> Factory Reset akan menghapus semua riwayat transaksi. Selalu Backup data secara berkala.
           </div>
        </div>
     </div>

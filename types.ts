@@ -66,6 +66,11 @@ export interface Transaction {
   customerName?: string;
 }
 
+export interface AppSettings {
+  googleScriptUrl?: string;
+  storeName?: string;
+}
+
 export interface AppState {
   user: User | null;
   tables: BilliardTable[];
@@ -73,6 +78,7 @@ export interface AppState {
   cart: CartItem[];
   transactions: Transaction[];
   users: User[]; // List of all users (for admin)
+  settings: AppSettings;
 }
 
 export type AppAction =
@@ -96,4 +102,6 @@ export type AppAction =
   | { type: 'DELETE_TABLE'; payload: number }
   | { type: 'ADD_USER'; payload: User }
   | { type: 'REMOVE_USER'; payload: string }
+  | { type: 'UPDATE_SETTINGS'; payload: AppSettings }
+  | { type: 'IMPORT_DATA'; payload: AppState }
   | { type: 'RESET_APP' };
