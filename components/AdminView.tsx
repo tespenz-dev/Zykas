@@ -1,11 +1,10 @@
 
 
-
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link } from 'lucide-react';
-import { Role, ProductCategory, AppState } from '../types';
+import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X } from 'lucide-react';
+import { Role, ProductCategory, AppState, User as UserType } from '../types';
 
 export const AdminView: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -14,6 +13,16 @@ export const AdminView: React.FC = () => {
   
   // Audit State
   const [physicalStocks, setPhysicalStocks] = useState<Record<string, string>>({});
+
+  // User Management State
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
+  const [userFormData, setUserFormData] = useState<Partial<UserType>>({
+      name: '',
+      username: '',
+      role: Role.CASHIER,
+      pin: ''
+  });
 
   // Sync State
   const [isSyncing, setIsSyncing] = useState(false);
@@ -148,6 +157,62 @@ export const AdminView: React.FC = () => {
 
   const handlePhysicalStockChange = (id: string, value: string) => {
       setPhysicalStocks(prev => ({ ...prev, [id]: value }));
+  };
+
+  // User Management Handlers
+  const handleOpenAddUser = () => {
+      setEditingUser(null);
+      setUserFormData({
+          name: '',
+          username: '',
+          role: Role.CASHIER,
+          pin: ''
+      });
+      setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (user: UserType) => {
+      setEditingUser(user);
+      setUserFormData({
+          name: user.name,
+          username: user.username,
+          role: user.role,
+          pin: user.pin
+      });
+      setIsUserModalOpen(true);
+  };
+
+  const handleDeleteUser = (id: string, name: string) => {
+      if (confirm(`Hapus operator "${name}"?`)) {
+          dispatch({ type: 'REMOVE_USER', payload: id });
+      }
+  };
+
+  const handleUserSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!userFormData.name || !userFormData.username || !userFormData.pin) {
+          alert("Mohon lengkapi semua data.");
+          return;
+      }
+
+      if (editingUser) {
+          dispatch({
+              type: 'EDIT_USER',
+              payload: { ...editingUser, ...userFormData } as UserType
+          });
+      } else {
+          dispatch({
+              type: 'ADD_USER',
+              payload: {
+                  id: `user-${Date.now()}`,
+                  name: userFormData.name || '',
+                  username: userFormData.username || '',
+                  role: userFormData.role || Role.CASHIER,
+                  pin: userFormData.pin || ''
+              }
+          });
+      }
+      setIsUserModalOpen(false);
   };
 
   const renderDashboard = () => (
@@ -338,32 +403,144 @@ export const AdminView: React.FC = () => {
 
   const renderUsers = () => (
     <div className="space-y-6 pb-20 md:pb-0">
-       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-        <h3 className="text-xl font-bold text-white mb-4">Manajemen Pengguna</h3>
-        <div className="space-y-3">
+       <div className="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-700">
+          <div>
+            <h3 className="text-xl font-bold text-white">Manajemen Operator</h3>
+            <p className="text-slate-400 text-sm">Kelola akun admin dan kasir yang bertugas.</p>
+          </div>
+          <button 
+             onClick={handleOpenAddUser}
+             className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20"
+          >
+             <Plus size={18} /> Tambah Operator
+          </button>
+       </div>
+
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {state.users.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-4 bg-slate-900 rounded-lg border border-slate-700">
+                <div key={u.id} className="flex items-center justify-between p-4 bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-500 transition-colors">
                     <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${u.role === Role.ADMIN ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${u.role === Role.ADMIN ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
                             {u.username[0].toUpperCase()}
                         </div>
                         <div>
-                            <div className="text-white font-medium">{u.name}</div>
-                            <div className="text-xs text-slate-500 uppercase">{u.role}</div>
+                            <div className="text-white font-bold text-lg">{u.name}</div>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${u.role === Role.ADMIN ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-600 text-slate-400'}`}>
+                                    {u.role}
+                                </span>
+                                <span className="text-slate-500 text-xs">@{u.username}</span>
+                            </div>
                         </div>
                     </div>
-                    {u.role !== Role.ADMIN && (
+                    <div className="flex gap-2">
                         <button 
-                            onClick={() => dispatch({ type: 'REMOVE_USER', payload: u.id })}
-                            className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            onClick={() => handleOpenEditUser(u)}
+                            className="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-colors"
+                            title="Edit"
                         >
-                            <Trash2 size={18} />
+                            <Edit size={18} />
                         </button>
-                    )}
+                        {u.role !== Role.ADMIN && (
+                            <button 
+                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                className="p-2 bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-colors"
+                                title="Hapus"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
+                    </div>
                 </div>
             ))}
-        </div>
        </div>
+
+       {/* User Modal */}
+       {isUserModalOpen && (
+           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
+               <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+                   <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-850">
+                       <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                           {editingUser ? <Edit size={20} className="text-blue-500"/> : <Plus size={20} className="text-emerald-500"/>}
+                           {editingUser ? 'Edit Operator' : 'Tambah Operator Baru'}
+                       </h3>
+                       <button onClick={() => setIsUserModalOpen(false)} className="text-slate-500 hover:text-white">
+                           <X size={24} />
+                       </button>
+                   </div>
+                   
+                   <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+                       <div>
+                           <label className="block text-sm font-medium text-slate-400 mb-1">Nama Lengkap</label>
+                           <input 
+                               type="text" 
+                               required
+                               value={userFormData.name}
+                               onChange={e => setUserFormData({...userFormData, name: e.target.value})}
+                               className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                               placeholder="Contoh: Budi Santoso"
+                           />
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                           <div>
+                               <label className="block text-sm font-medium text-slate-400 mb-1">Username (Inisial)</label>
+                               <input 
+                                   type="text" 
+                                   required
+                                   value={userFormData.username}
+                                   onChange={e => setUserFormData({...userFormData, username: e.target.value.toLowerCase()})}
+                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                                   placeholder="budi"
+                               />
+                           </div>
+                           <div>
+                               <label className="block text-sm font-medium text-slate-400 mb-1">Role</label>
+                               <select 
+                                   value={userFormData.role}
+                                   onChange={e => setUserFormData({...userFormData, role: e.target.value as Role})}
+                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                               >
+                                   <option value={Role.CASHIER}>Kasir</option>
+                                   <option value={Role.ADMIN}>Admin</option>
+                               </select>
+                           </div>
+                       </div>
+
+                       <div>
+                           <label className="block text-sm font-medium text-slate-400 mb-1">PIN Akses (6 Angka)</label>
+                           <input 
+                               type="text" 
+                               required
+                               pattern="[0-9]*"
+                               maxLength={6}
+                               minLength={6}
+                               value={userFormData.pin}
+                               onChange={e => setUserFormData({...userFormData, pin: e.target.value.replace(/[^0-9]/g, '')})}
+                               className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white font-mono tracking-widest text-center text-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                               placeholder="123456"
+                           />
+                       </div>
+
+                       <div className="flex gap-3 pt-4 border-t border-slate-700">
+                           <button 
+                               type="button"
+                               onClick={() => setIsUserModalOpen(false)}
+                               className="flex-1 py-3.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 font-bold transition-colors"
+                           >
+                               Batal
+                           </button>
+                           <button 
+                               type="submit"
+                               className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2"
+                           >
+                               <Save size={18} /> Simpan
+                           </button>
+                       </div>
+                   </form>
+               </div>
+           </div>
+       )}
     </div>
   );
 

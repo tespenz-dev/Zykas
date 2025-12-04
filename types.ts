@@ -19,9 +19,9 @@ export enum ProductCategory {
 
 export interface User {
   id: string;
-  username: string;
+  username: string; // Used for login display (e.g. initials)
   role: Role;
-  name: string;
+  name: string; // Full name
   pin: string;
 }
 
@@ -66,6 +66,17 @@ export interface Transaction {
   customerName?: string;
 }
 
+export interface CashierShift {
+  id: string;
+  cashierId: string;
+  cashierName: string;
+  startTime: number;
+  endTime: number | null;
+  startCash: number; // Modal Awal
+  totalSales: number; // Total Penjualan Sesi Ini
+  status: 'OPEN' | 'CLOSED';
+}
+
 export interface AppSettings {
   googleScriptUrl?: string;
   storeName?: string;
@@ -73,6 +84,7 @@ export interface AppSettings {
 
 export interface AppState {
   user: User | null;
+  activeShift: CashierShift | null; // Shift yang sedang aktif
   tables: BilliardTable[];
   products: Product[];
   cart: CartItem[];
@@ -84,6 +96,8 @@ export interface AppState {
 export type AppAction =
   | { type: 'LOGIN'; payload: User }
   | { type: 'LOGOUT' }
+  | { type: 'OPEN_SHIFT'; payload: { startCash: number; cashierName: string; cashierId: string } }
+  | { type: 'CLOSE_SHIFT' }
   | { type: 'START_TABLE'; payload: { tableId: number; duration: number; customer: string } } 
   | { type: 'STOP_TABLE'; payload: { tableId: number } }
   | { type: 'TOPUP_TABLE'; payload: { tableId: number; duration: number } }
@@ -101,6 +115,7 @@ export type AppAction =
   | { type: 'EDIT_TABLE'; payload: BilliardTable }
   | { type: 'DELETE_TABLE'; payload: number }
   | { type: 'ADD_USER'; payload: User }
+  | { type: 'EDIT_USER'; payload: User }
   | { type: 'REMOVE_USER'; payload: string }
   | { type: 'UPDATE_SETTINGS'; payload: AppSettings }
   | { type: 'IMPORT_DATA'; payload: AppState }

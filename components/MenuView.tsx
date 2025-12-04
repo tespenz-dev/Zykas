@@ -1,7 +1,9 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
-import { Clock, ArrowRightLeft, PlusCircle, Search, ShoppingCart, Plus, Trash2, Coffee, ChevronDown, ChevronUp, User, CheckCircle, AlertCircle, X, Square } from 'lucide-react';
+import { Clock, ArrowRightLeft, PlusCircle, Search, ShoppingCart, Plus, Trash2, Coffee, ChevronDown, ChevronUp, User, CheckCircle, AlertCircle, X, Square, Shield, Lock, Unlock, DollarSign, Wallet } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 
 // --- Subcomponents ---
@@ -60,549 +62,523 @@ const TableCard: React.FC<{
       </div>
 
       {/* Info Body */}
-      <div className="space-y-1 relative z-10 flex-1">
-        {table.status === TableStatus.OCCUPIED ? (
-          <>
-            <div className="text-slate-400 text-xs md:text-sm flex items-center gap-2">
-              <Clock size={14} />
-              <span className="font-mono">{formatTime(elapsed)}</span>
-            </div>
-             <div className="text-slate-300 text-xs md:text-sm truncate font-medium">
-              {table.customerName}
-            </div>
-            {table.durationMinutes > 0 && (
-              <div className={`text-[10px] md:text-xs font-bold ${isOvertime ? 'text-rose-400 animate-pulse' : 'text-blue-400'}`}>
-                Sisa: {formatTime(Math.max(0, remainingSeconds))}
-              </div>
-            )}
-            
-            {/* Direct Action Buttons for Occupied Table */}
-            <div className="grid grid-cols-3 gap-2 mt-3">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onTopUp(table); }}
-                    className="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded py-1.5 flex items-center justify-center transition-colors"
-                    title="Tambah Jam"
-                >
-                    <PlusCircle size={16} />
-                </button>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onMove(table); }}
-                    className="bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white border border-amber-500/30 rounded py-1.5 flex items-center justify-center transition-colors"
-                    title="Pindah Meja"
-                >
-                    <ArrowRightLeft size={16} />
-                </button>
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onStop(table); }}
-                    className="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/30 rounded py-1.5 flex items-center justify-center transition-colors"
-                    title="Stop Timer"
-                >
-                    <Square size={14} fill="currentColor" />
-                </button>
-            </div>
-          </>
-        ) : (
-          <div className="text-slate-500 text-xs md:text-sm italic mt-2">Tap untuk sewa</div>
-        )}
-      </div>
+      {table.status === TableStatus.OCCUPIED ? (
+        <div className="space-y-1 relative z-10">
+          <div className="text-white text-xs md:text-sm font-medium truncate flex items-center gap-1">
+             <User size={12}/> {table.customerName || 'Tamu'}
+          </div>
+          <div className={`text-2xl md:text-3xl font-mono font-bold tracking-tight ${isOvertime ? 'text-rose-500 animate-pulse' : 'text-white'}`}>
+             {formatTime(Math.abs(remainingSeconds))}
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+             <span>Sisa Waktu</span>
+             {isOvertime && <span className="text-rose-500">Overtime</span>}
+          </div>
+        </div>
+      ) : (
+         <div className="flex-1 flex items-center justify-center relative z-10">
+             <span className="text-slate-500 text-xs italic">Tap untuk sewa</span>
+         </div>
+      )}
 
-      {/* Visual Cue Ball */}
-      <div className={`absolute bottom-3 right-3 w-7 h-7 md:w-8 md:h-8 rounded-full shadow-inner flex items-center justify-center pointer-events-none ${
-        table.status === TableStatus.OCCUPIED ? 'bg-gradient-to-br from-rose-400 to-rose-600 opacity-20' : 'bg-gradient-to-br from-emerald-400 to-emerald-600'
-      }`}>
-        <span className="text-white font-bold text-xs md:text-sm">{table.id}</span>
+      {/* Action Buttons Overlay for Occupied */}
+      {table.status === TableStatus.OCCUPIED && (
+          <div className="mt-3 grid grid-cols-3 gap-2 relative z-20">
+              <button 
+                  onClick={(e) => { e.stopPropagation(); onStop(table); }}
+                  className="bg-rose-600 hover:bg-rose-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  title="Stop"
+              >
+                  <Square size={16} fill="currentColor" />
+              </button>
+              <button 
+                  onClick={(e) => { e.stopPropagation(); onTopUp(table); }}
+                  className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  title="Tambah Waktu"
+              >
+                  <PlusCircle size={18} />
+              </button>
+              <button 
+                  onClick={(e) => { e.stopPropagation(); onMove(table); }}
+                  className="bg-amber-600 hover:bg-amber-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  title="Pindah Meja"
+              >
+                  <ArrowRightLeft size={18} />
+              </button>
+          </div>
+      )}
+      
+      {/* Background Number Watermark */}
+      <div className="absolute bottom-2 right-2 text-6xl font-black text-slate-700/20 pointer-events-none z-0">
+          {table.id}
       </div>
     </div>
   );
 };
 
-const ProductCard: React.FC<{ product: Product; effectiveStock: number; onAdd: () => void }> = ({ product, effectiveStock, onAdd }) => (
-  <div 
-    onClick={() => effectiveStock > 0 && onAdd()}
-    className={`
-        relative bg-slate-800 rounded-xl p-3 border border-slate-700 flex flex-col justify-between 
-        transition-all group h-full w-full overflow-hidden select-none min-h-[100px]
-        ${effectiveStock > 0 ? 'hover:border-emerald-500/50 hover:bg-slate-750 cursor-pointer active:scale-95 shadow-sm hover:shadow-md' : 'opacity-50 cursor-not-allowed grayscale'}
-      `}
+const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }> = ({ product, onClick }) => (
+  <button 
+    onClick={() => onClick(product)}
+    className={`p-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-left transition-all active:scale-95 flex flex-col justify-between h-32 relative overflow-hidden group ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+    disabled={product.stock === 0}
   >
-    <div>
-      <h3 className="text-sm font-bold text-white mb-1 group-hover:text-emerald-300 transition-colors line-clamp-2 leading-tight">{product.name}</h3>
-      <span className={`${effectiveStock > 0 ? 'text-emerald-400' : 'text-rose-400'} text-[10px] font-mono font-bold`}>
-         Stok: {effectiveStock}
-      </span>
+    <div className="z-10">
+      <h3 className="font-bold text-white text-sm line-clamp-2 leading-tight mb-1">{product.name}</h3>
+      <div className="text-emerald-400 font-bold text-sm">Rp {product.price.toLocaleString()}</div>
     </div>
-
-    <div className="mt-auto flex items-center justify-between pt-2">
-      <p className="text-slate-300 font-bold text-xs">Rp {product.price.toLocaleString()}</p>
-      {effectiveStock > 0 && (
-        <div className="w-6 h-6 rounded-full bg-slate-700 group-hover:bg-emerald-500/20 text-slate-400 group-hover:text-emerald-400 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
-            <Plus size={14} strokeWidth={3} />
-        </div>
-      )}
+    <div className="z-10 mt-auto flex justify-between items-end w-full">
+         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${product.stock <= 5 ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-600/50 text-slate-400'}`}>
+            Stok: {product.stock}
+         </span>
+         <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg transform translate-y-10 group-hover:translate-y-0 transition-transform">
+            <Plus size={16} />
+         </div>
     </div>
-  </div>
+    {/* Icon Watermark */}
+    <div className="absolute -bottom-2 -right-2 text-slate-700/30">
+        <Coffee size={64} />
+    </div>
+  </button>
 );
 
 // --- Main Component ---
 
 export const MenuView: React.FC = () => {
   const { state, dispatch } = useApp();
+  const [activeTab, setActiveTab] = useState<string>('BILLIARD');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'BILLIARD' | ProductCategory>('BILLIARD');
-  
-  // Cart Logic
-  const [isCartOpenMobile, setIsCartOpenMobile] = useState(false);
   const [customerName, setCustomerName] = useState('');
-  const customerInputRef = useRef<HTMLInputElement>(null);
+  const [activeTableId, setActiveTableId] = useState<number | null>(null);
   
-  // Checkout Modal & Payment Logic
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
-  const [paidAmount, setPaidAmount] = useState<number>(0);
+  // Shift Modals
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false); // Untuk Buka Kasir
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false); // Untuk Tutup Kasir
+  const [startCashInput, setStartCashInput] = useState('');
 
-  // Table Move Modal
-  const [moveTableData, setMoveTableData] = useState<{ fromId: number; toId: string } | null>(null);
+  // Table Action Modals
+  const [showTableModal, setShowTableModal] = useState<'START' | 'TOPUP' | 'MOVE' | null>(null);
+  const [duration, setDuration] = useState(60); // Default 60 mins
+  const [targetTableId, setTargetTableId] = useState<number | null>(null);
 
-  // Filter Data
-  const filteredTables = state.tables;
-  const filteredProducts = state.products.filter(p => {
-    // Exclude Raw Materials from POS
-    if (p.category === ProductCategory.RAW_MATERIAL) return false;
-
-    if (searchTerm) {
-      return p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    }
-    return activeTab === 'BILLIARD' ? false : p.category === activeTab;
-  });
-
-  // Helper to get stock (handles linked stock)
-  const getEffectiveStock = (product: Product): number => {
-      if (product.stockLinkedToId) {
-          const parent = state.products.find(p => p.id === product.stockLinkedToId);
-          return parent ? parent.stock : 0;
-      }
-      return product.stock;
-  };
-
-  // Cart Calculations
   const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const cartCount = state.cart.reduce((a,b) => a + b.quantity, 0);
-  const hasTableInCart = state.cart.some(item => item.itemType === 'BILLIARD');
-  
-  // Payment Calculations
-  const changeAmount = paidAmount - cartTotal;
-  const isPaymentSufficient = paidAmount >= cartTotal;
+  const isShiftActive = !!state.activeShift;
 
   // --- Handlers ---
 
-  const handleTableSelect = (table: BilliardTable) => {
-    dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
+  const handleOpenShift = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!startCashInput) return;
+      
+      dispatch({ 
+          type: 'OPEN_SHIFT', 
+          payload: {
+              startCash: parseInt(startCashInput),
+              cashierId: state.user?.id || 'unknown',
+              cashierName: state.user?.name || 'Unknown'
+          }
+      });
+      setIsShiftModalOpen(false);
+      setStartCashInput('');
   };
 
-  const handleTopUpTable = (table: BilliardTable) => {
-    dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
+  const handleCloseShift = () => {
+      dispatch({ type: 'CLOSE_SHIFT' });
+      setIsCloseShiftModalOpen(false);
   };
 
-  const handleStopTable = (table: BilliardTable) => {
-     dispatch({ type: 'STOP_TABLE', payload: { tableId: table.id } });
+  const handleTableAction = (table: BilliardTable, action: 'START' | 'TOPUP' | 'MOVE') => {
+      setActiveTableId(table.id);
+      setShowTableModal(action);
+      setDuration(60);
+      setCustomerName('');
   };
 
-  const handleMoveTableClick = (table: BilliardTable) => {
-      setMoveTableData({ fromId: table.id, toId: '' });
-  };
+  const handleConfirmTableAction = () => {
+      if (!activeTableId) return;
 
-  const confirmMoveTable = () => {
-      if (moveTableData && moveTableData.toId) {
-          dispatch({ type: 'MOVE_TABLE', payload: { fromId: moveTableData.fromId, toId: parseInt(moveTableData.toId) } });
-          setMoveTableData(null);
+      if (showTableModal === 'START') {
+          if (!customerName.trim()) {
+              alert('Nama Pelanggan wajib diisi!');
+              return;
+          }
+          dispatch({ 
+              type: 'START_TABLE', 
+              payload: { tableId: activeTableId, duration, customer: customerName } 
+          });
+      } else if (showTableModal === 'TOPUP') {
+          dispatch({ 
+              type: 'TOPUP_TABLE', 
+              payload: { tableId: activeTableId, duration } 
+          });
+      } else if (showTableModal === 'MOVE') {
+          if (!targetTableId) return;
+          dispatch({ 
+              type: 'MOVE_TABLE', 
+              payload: { fromId: activeTableId, toId: targetTableId } 
+          });
       }
+      setShowTableModal(null);
   };
 
-  const handleOpenCheckout = () => {
-      setPaidAmount(0); // Reset payment input
-      setShowCheckoutModal(true);
+  const handleAddToCart = (product: Product) => {
+      dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product });
   };
 
-  const processPayment = () => {
-    if (hasTableInCart && !customerName.trim()) {
-        setShowCheckoutModal(false);
-        alert("Mohon isi Nama Pelanggan untuk sewa meja.");
-        setTimeout(() => {
-            customerInputRef.current?.focus();
-        }, 100);
+  const handleCheckout = () => {
+    if (!isShiftActive) {
+        setIsShiftModalOpen(true);
         return;
     }
-
-    if (!isPaymentSufficient) {
-        alert("Uang pembayaran kurang!");
-        return;
+    if (state.cart.length === 0) return;
+    
+    // Check if customer name is needed (if billiard item exists)
+    const hasBilliard = state.cart.some(i => i.itemType === 'BILLIARD');
+    if (hasBilliard && !customerName.trim()) {
+       alert("Nama Pelanggan wajib diisi untuk sewa meja!");
+       return;
     }
 
-    dispatch({ 
+    if (confirm(`Total Rp ${cartTotal.toLocaleString()}. Proses bayar?`)) {
+      dispatch({ 
         type: 'CHECKOUT', 
         payload: { 
-            total: cartTotal, 
-            cashierName: state.user?.name || 'Kasir',
-            customerName: customerName.trim()
+          total: cartTotal, 
+          cashierName: state.user?.name || 'Unknown',
+          customerName: customerName
         } 
-    });
-    
-    // Reset
-    setCustomerName('');
-    setIsCartOpenMobile(false);
-    setShowCheckoutModal(false);
+      });
+      setCustomerName('');
+    }
   };
+
+  // Filter Logic
+  const filteredProducts = state.products.filter(p => 
+      (activeTab === 'ALL' || p.category === activeTab) &&
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      p.category !== ProductCategory.RAW_MATERIAL // Jangan tampilkan bahan baku di menu kasir
+  );
+
+  const filteredTables = state.tables.filter(t =>
+      t.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col md:flex-row h-full overflow-hidden relative">
       
-      {/* --- Left Side: Catalog --- */}
-      <div className="flex-1 flex flex-col min-w-0 border-r-0 md:border-r border-slate-700/50 bg-slate-950">
+      {/* --- Left Side: Menu Grid --- */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
-        {/* Header Section */}
-        <div className="p-4 md:p-6 pb-2 shrink-0 z-20 bg-slate-950">
-           {/* Header Layout: Tabs on top, Search bar below */}
-           <div className="flex flex-col gap-4">
-              
-              {/* Category Tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-1">
-                  <button 
-                      onClick={() => { setActiveTab('BILLIARD'); setSearchTerm(''); }}
-                      className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap shadow-sm ${activeTab === 'BILLIARD' ? 'bg-emerald-500 text-white shadow-emerald-900/50' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
-                  >
-                      Billiard
-                  </button>
-                  {Object.values(ProductCategory)
-                    .filter(cat => cat !== ProductCategory.RAW_MATERIAL) // Hide Raw Material
-                    .map(cat => (
-                      <button 
-                          key={cat}
-                          onClick={() => { setActiveTab(cat); setSearchTerm(''); }}
-                          className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap shadow-sm ${activeTab === cat ? 'bg-amber-500 text-white shadow-amber-900/50' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
-                      >
-                          {cat}
-                      </button>
-                  ))}
-              </div>
+        {/* Header & Tabs */}
+        <div className="p-4 md:p-6 shrink-0">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                 {/* Tabs */}
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full md:w-auto">
+                    <button 
+                        onClick={() => setActiveTab('BILLIARD')}
+                        className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shadow-sm ${
+                            activeTab === 'BILLIARD' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        Billiard
+                    </button>
+                    {Object.values(ProductCategory).filter(c => c !== ProductCategory.RAW_MATERIAL).map(cat => (
+                        <button 
+                            key={cat}
+                            onClick={() => setActiveTab(cat)}
+                            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shadow-sm ${
+                                activeTab === cat ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                 </div>
 
-               {/* Search Bar - Moved below tabs */}
-               <div className="relative w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Cari meja atau menu..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-slate-800 text-white text-sm rounded-xl pl-9 pr-4 py-3 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-slate-600 transition-all shadow-sm focus:shadow-md"
-                    />
-               </div>
-           </div>
+                 {/* SHIFT STATUS BUTTON */}
+                 <div className="hidden md:block">
+                     {isShiftActive ? (
+                         <button 
+                            onClick={() => setIsCloseShiftModalOpen(true)}
+                            className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-emerald-900/50 transition-colors"
+                         >
+                            <Unlock size={16} /> KASIR BUKA
+                         </button>
+                     ) : (
+                         <button 
+                            onClick={() => setIsShiftModalOpen(true)}
+                            className="bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse"
+                         >
+                            <Lock size={16} /> KASIR TUTUP
+                         </button>
+                     )}
+                 </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                <input 
+                    type="text" 
+                    placeholder="Cari meja atau menu..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner"
+                />
+            </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 pt-2 pb-32 md:pb-6">
-            
-            {/* Billiard Tables Section */}
-            {activeTab === 'BILLIARD' && !searchTerm && (
-                <div className="mb-8 animate-fade-in">
-                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
-                        {filteredTables.map(table => (
-                            <TableCard 
-                                key={table.id} 
-                                table={table} 
-                                onSelect={handleTableSelect}
-                                onTopUp={handleTopUpTable}
-                                onStop={handleStopTable}
-                                onMove={handleMoveTableClick}
-                            />
-                        ))}
-                    </div>
+        {/* Grid Content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 pt-0 pb-32 md:pb-6 scrollbar-hide">
+            {activeTab === 'BILLIARD' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredTables.map(table => (
+                        <TableCard 
+                            key={table.id} 
+                            table={table} 
+                            onSelect={() => handleTableAction(table, 'START')}
+                            onTopUp={() => handleTableAction(table, 'TOPUP')}
+                            onStop={(t) => dispatch({ type: 'STOP_TABLE', payload: { tableId: t.id } })}
+                            onMove={() => handleTableAction(table, 'MOVE')}
+                        />
+                    ))}
                 </div>
-            )}
-
-            {/* Products Grid */}
-            {(activeTab !== 'BILLIARD' || searchTerm) && (
-                <div className="animate-fade-in">
-                    {searchTerm && filteredProducts.length === 0 ? (
-                        <div className="text-center text-slate-500 py-10">
-                            <p>Produk "{searchTerm}" tidak ditemukan.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                            {filteredProducts.map(product => (
-                                <ProductCard 
-                                    key={product.id} 
-                                    product={product} 
-                                    effectiveStock={getEffectiveStock(product)}
-                                    onAdd={() => dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product })}
-                                />
-                            ))}
-                        </div>
-                    )}
+            ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {filteredProducts.map(product => (
+                        <ProductCard key={product.id} product={product} onClick={handleAddToCart} />
+                    ))}
                 </div>
             )}
         </div>
       </div>
 
       {/* --- Right Side: Cart Sidebar --- */}
-      <div className={`
-        fixed inset-x-0 bottom-16 md:bottom-0 z-[60] transform transition-transform duration-300 md:relative md:transform-none md:w-80 lg:w-96 bg-slate-900 flex flex-col border-t md:border-t-0 md:border-l border-slate-800 shadow-2xl
-        ${isCartOpenMobile ? 'translate-y-0 h-[70vh]' : 'translate-y-[calc(100%-48px)] md:translate-y-0 h-auto md:h-full'}
-      `}>
-        
-        {/* Mobile Toggle Handle */}
-        <div 
-            className="md:hidden h-12 bg-slate-850 flex items-center justify-between px-6 border-t border-emerald-500/30 cursor-pointer hover:bg-slate-800 transition-colors"
-            onClick={() => setIsCartOpenMobile(!isCartOpenMobile)}
-        >
-            <div className="flex items-center gap-2 font-bold text-white text-sm">
-                <ShoppingCart size={16} />
-                <span>{cartCount} Items</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-bold text-sm">Rp {cartTotal.toLocaleString()}</span>
-                {isCartOpenMobile ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-            </div>
-        </div>
-
-        {/* Cart Header (Desktop) */}
-        <div className="p-4 md:p-6 border-b border-slate-800 bg-slate-850 hidden md:block">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <ShoppingCart size={20} />
-            Pesanan ({cartCount})
-          </h3>
-        </div>
-
-        {/* Customer Info Input */}
-        <div className="p-4 bg-slate-900 border-b border-slate-800">
-             <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                <input 
-                    ref={customerInputRef}
-                    type="text" 
-                    placeholder="Nama Pelanggan (Wajib untuk Meja)" 
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className={`w-full bg-slate-800 text-white text-sm rounded-xl pl-9 pr-4 py-3 border focus:ring-2 outline-none transition-all ${!customerName && hasTableInCart ? 'border-amber-500/50 focus:ring-amber-500 placeholder:text-amber-500/50' : 'border-slate-700 focus:ring-emerald-500'}`}
-                />
+      <div className="w-full md:w-96 bg-slate-900 border-l border-slate-800 flex flex-col h-[40vh] md:h-full fixed bottom-0 md:relative z-40 shadow-2xl md:shadow-none rounded-t-3xl md:rounded-none">
+         
+         {/* Cart Header */}
+         <div className="p-4 border-b border-slate-800 bg-slate-900 rounded-t-3xl md:rounded-none flex flex-col gap-3">
+             {/* Operator Info Block */}
+             <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold border border-slate-700">
+                         <User size={20} />
+                     </div>
+                     <div>
+                         <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator Bertugas</div>
+                         <div className="text-white font-bold">{state.user?.name}</div>
+                     </div>
+                 </div>
+                 <div className="md:hidden">
+                    {/* Mobile Shift Button */}
+                    {isShiftActive ? (
+                         <button onClick={() => setIsCloseShiftModalOpen(true)} className="text-[10px] bg-emerald-900/50 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">BUKA</button>
+                    ) : (
+                         <button onClick={() => setIsShiftModalOpen(true)} className="text-[10px] bg-rose-900/50 text-rose-400 px-2 py-1 rounded border border-rose-500/30">TUTUP</button>
+                    )}
+                 </div>
              </div>
-             {hasTableInCart && !customerName && (
-                 <p className="text-[10px] text-amber-500 mt-1 ml-1 flex items-center gap-1">
-                    <AlertCircle size={10} /> Nama wajib diisi untuk sewa meja
-                 </p>
+
+             <div className="flex items-center gap-2 text-emerald-400">
+                 <ShoppingCart size={20} />
+                 <h2 className="font-bold text-lg">Keranjang Pesanan ({state.cart.reduce((a, b) => a + b.quantity, 0)})</h2>
+             </div>
+             
+             <input 
+                 type="text" 
+                 placeholder="Nama Pelanggan (Wajib untuk Meja)"
+                 value={customerName}
+                 onChange={(e) => setCustomerName(e.target.value)}
+                 className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 px-4 text-sm text-white focus:border-emerald-500 outline-none"
+             />
+         </div>
+
+         {/* Cart Items */}
+         <div className="flex-1 overflow-y-auto p-4 space-y-3">
+             {state.cart.length === 0 ? (
+                 <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
+                     <Coffee size={48} className="opacity-20" />
+                     <p className="text-sm">Keranjang kosong</p>
+                 </div>
+             ) : (
+                 state.cart.map((item, idx) => (
+                     <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group">
+                         <div>
+                             <div className="text-white font-medium text-sm">{item.name}</div>
+                             <div className="text-xs text-slate-500">
+                                 {item.quantity} x Rp {item.price.toLocaleString()}
+                             </div>
+                         </div>
+                         <div className="flex items-center gap-3">
+                             <div className="text-emerald-400 font-bold text-sm">
+                                 Rp {(item.price * item.quantity).toLocaleString()}
+                             </div>
+                             <button 
+                                 onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
+                                 className="text-slate-600 hover:text-rose-500 transition-colors p-1"
+                             >
+                                 <X size={16} />
+                             </button>
+                         </div>
+                     </div>
+                 ))
              )}
-        </div>
+         </div>
 
-        {/* Cart Items List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900 min-h-0">
-          {state.cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-500 pb-10">
-                <Coffee size={48} className="mb-4 opacity-20" />
-                <p className="text-sm">Keranjang kosong</p>
-            </div>
-          ) : (
-            state.cart.map((item) => (
-              <div key={item.itemId} className="bg-slate-800 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all">
-                <div className="flex-1 min-w-0 pr-2">
-                    <div className="text-white font-medium text-sm truncate">{item.name}</div>
-                    <div className="text-slate-400 text-xs flex items-center gap-2">
-                        <span>Rp {item.price.toLocaleString()}</span>
-                        {item.itemType === 'BILLIARD' && <span className="text-emerald-400 font-mono text-[10px] bg-emerald-500/10 px-1.5 rounded">SEWA</span>}
-                    </div>
-                </div>
-                <div className="flex items-center gap-3 bg-slate-900 rounded-lg p-1 border border-slate-800">
-                   <button 
-                     onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
-                     className="text-slate-500 hover:text-rose-400 p-1.5 transition-colors"
-                   >
-                     <Trash2 size={14} />
-                   </button>
-                   <span className="text-white font-mono text-xs font-bold w-4 text-center">
-                       {item.itemType === 'BILLIARD' ? `${item.quantity}j` : item.quantity}
-                   </span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Checkout Section (Fixed Bottom) */}
-        <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-slate-400 text-sm">Total Tagihan</span>
-            <span className="text-xl md:text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
-          </div>
-          
-          <button 
-            onClick={handleOpenCheckout}
-            disabled={state.cart.length === 0}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-base md:text-lg transition-all shadow-lg shadow-emerald-900/20 active:scale-95 flex items-center justify-center gap-2"
-          >
-            <CheckCircle size={20} />
-            Bayar Sekarang
-          </button>
-        </div>
+         {/* Cart Footer */}
+         <div className="p-4 bg-slate-800 border-t border-slate-700">
+             <div className="flex justify-between items-center mb-4">
+                 <span className="text-slate-400 font-medium">Total Tagihan</span>
+                 <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
+             </div>
+             
+             <button 
+                 onClick={handleCheckout}
+                 disabled={!isShiftActive || state.cart.length === 0}
+                 className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
+                    !isShiftActive 
+                     ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                     : state.cart.length === 0 
+                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
+                 }`}
+             >
+                 {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
+                 {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
+             </button>
+         </div>
       </div>
 
-      {/* --- Modals --- */}
+      {/* --- MODALS --- */}
 
-      {/* Move Table Modal */}
-      {moveTableData && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in">
+      {/* 1. Modal Table Action (Start/Topup/Move) */}
+      {showTableModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
-                  <h3 className="text-xl font-bold text-white mb-4">Pindah Meja</h3>
-                  <p className="text-slate-400 text-sm mb-4">
-                      Pindahkan sesi dari <strong className="text-white">{state.tables.find(t => t.id === moveTableData.fromId)?.name}</strong> ke:
-                  </p>
-                  <select 
-                      className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-4 py-3 outline-none mb-6"
-                      value={moveTableData.toId}
-                      onChange={(e) => setMoveTableData({...moveTableData, toId: e.target.value})}
-                  >
-                      <option value="">Pilih Meja Tujuan...</option>
-                      {state.tables.filter(t => t.status === TableStatus.AVAILABLE).map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                  </select>
+                  <h3 className="text-xl font-bold text-white mb-4">
+                      {showTableModal === 'START' ? 'Mulai Sewa Meja' : showTableModal === 'TOPUP' ? 'Tambah Waktu' : 'Pindah Meja'}
+                  </h3>
+                  
+                  {showTableModal === 'START' && (
+                      <div className="mb-4">
+                          <label className="block text-sm text-slate-400 mb-1">Nama Tamu</label>
+                          <input 
+                              type="text" 
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none"
+                              placeholder="Masukkan nama..."
+                              autoFocus
+                          />
+                      </div>
+                  )}
+
+                  {showTableModal !== 'MOVE' && (
+                       <div className="mb-6">
+                          <label className="block text-sm text-slate-400 mb-1">Durasi (Menit)</label>
+                          <div className="grid grid-cols-3 gap-2 mb-2">
+                              {[60, 120, 180].map(m => (
+                                  <button key={m} onClick={() => setDuration(m)} className={`py-2 rounded-lg text-sm font-bold ${duration === m ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                      {m / 60} Jam
+                                  </button>
+                              ))}
+                          </div>
+                          <input 
+                              type="number" 
+                              value={duration}
+                              onChange={(e) => setDuration(parseInt(e.target.value))}
+                              className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none text-center font-bold"
+                          />
+                      </div>
+                  )}
+
+                  {showTableModal === 'MOVE' && (
+                      <div className="mb-6">
+                          <label className="block text-sm text-slate-400 mb-1">Pindah ke Meja:</label>
+                          <select 
+                             className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white"
+                             onChange={(e) => setTargetTableId(parseInt(e.target.value))}
+                             defaultValue=""
+                          >
+                              <option value="" disabled>Pilih Meja Kosong</option>
+                              {state.tables.filter(t => t.status === TableStatus.AVAILABLE).map(t => (
+                                  <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                          </select>
+                      </div>
+                  )}
+
                   <div className="flex gap-3">
-                      <button 
-                          onClick={() => setMoveTableData(null)}
-                          className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-800 font-bold"
-                      >
-                          Batal
-                      </button>
-                      <button 
-                          onClick={confirmMoveTable}
-                          disabled={!moveTableData.toId}
-                          className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold"
-                      >
-                          Pindah
-                      </button>
+                      <button onClick={() => setShowTableModal(null)} className="flex-1 py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700">Batal</button>
+                      <button onClick={handleConfirmTableAction} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500">Konfirmasi</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* Checkout Confirmation Modal */}
-      {showCheckoutModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
-              <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-                  {/* Modal Header */}
-                  <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-850">
-                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          <CheckCircle className="text-emerald-500" size={20} />
-                          Konfirmasi Pembayaran
-                      </h3>
-                      <button onClick={() => setShowCheckoutModal(false)} className="text-slate-500 hover:text-white">
-                          <X size={24} />
+      {/* 2. Modal BUKA KASIR (Open Shift) */}
+      {isShiftModalOpen && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
+              <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center">
+                  <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Wallet size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Buka Kasir</h2>
+                  <p className="text-slate-400 text-sm mb-6">Masukkan jumlah uang modal awal di laci kasir.</p>
+                  
+                  <form onSubmit={handleOpenShift}>
+                      <div className="relative mb-6">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
+                          <input 
+                              type="number" 
+                              required
+                              value={startCashInput}
+                              onChange={(e) => setStartCashInput(e.target.value)}
+                              className="w-full bg-slate-800 border border-slate-600 rounded-2xl py-4 pl-12 pr-4 text-2xl font-bold text-white text-center focus:ring-2 focus:ring-emerald-500 outline-none"
+                              placeholder="0"
+                              autoFocus
+                          />
+                      </div>
+                      <button type="submit" className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/30 transition-all">
+                          Buka Shift Sekarang
                       </button>
+                  </form>
+                  <button onClick={() => setIsShiftModalOpen(false)} className="mt-4 text-slate-500 text-sm hover:text-white">Batal</button>
+              </div>
+          </div>
+      )}
+
+      {/* 3. Modal TUTUP KASIR (Close Shift) */}
+      {isCloseShiftModalOpen && state.activeShift && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
+              <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8">
+                  <div className="text-center mb-6">
+                      <h2 className="text-2xl font-bold text-white">Ringkasan Shift</h2>
+                      <p className="text-slate-400 text-sm">Operator: {state.activeShift.cashierName}</p>
                   </div>
 
-                  {/* Modal Body */}
-                  <div className="p-6 overflow-y-auto">
-                      {/* Customer Info */}
-                      <div className="bg-slate-800/50 rounded-xl p-4 mb-4 border border-slate-700/50">
-                          <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Pelanggan</div>
-                          <div className="text-lg text-white font-medium">{customerName || 'Umum'}</div>
+                  <div className="space-y-4 mb-8">
+                      <div className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                          <span className="text-slate-400 text-sm">Modal Awal</span>
+                          <span className="text-white font-mono font-bold">Rp {state.activeShift.startCash.toLocaleString()}</span>
                       </div>
-
-                      {/* Order Summary Details */}
-                      <div className="mb-6">
-                          <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2">Rincian Pesanan</div>
-                          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
-                                <div className="max-h-40 overflow-y-auto">
-                                    {state.cart.map((item) => (
-                                        <div key={item.itemId} className="flex justify-between items-start p-3 border-b border-slate-700/30 last:border-0 text-sm">
-                                            <div className="flex-1 pr-2">
-                                                <div className="text-white font-medium line-clamp-1">{item.name}</div>
-                                                <div className="text-slate-500 text-xs mt-0.5">
-                                                    {item.quantity} x Rp {item.price.toLocaleString()}
-                                                </div>
-                                            </div>
-                                            <div className="text-slate-300 font-mono text-right whitespace-nowrap">
-                                                Rp {(item.price * item.quantity).toLocaleString()}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                          </div>
+                      <div className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                          <span className="text-slate-400 text-sm">Total Penjualan</span>
+                          <span className="text-emerald-400 font-mono font-bold">+ Rp {state.activeShift.totalSales.toLocaleString()}</span>
                       </div>
-
-                      {/* Payment Input Section */}
-                      <div className="mb-6">
-                           <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2">Uang Diterima</div>
-                           <div className="relative mb-3">
-                               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">Rp</div>
-                               <input 
-                                  type="number"
-                                  value={paidAmount || ''}
-                                  onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
-                                  className="w-full bg-slate-800 text-white text-2xl font-bold rounded-xl pl-12 pr-4 py-3 border border-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                  placeholder="0"
-                                  autoFocus
-                               />
-                           </div>
-                           
-                           {/* Quick Cash Buttons */}
-                           <div className="grid grid-cols-3 gap-2">
-                               <button 
-                                  onClick={() => setPaidAmount(cartTotal)}
-                                  className="py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs font-bold"
-                               >
-                                  Uang Pas
-                               </button>
-                               <button 
-                                  onClick={() => setPaidAmount(50000)}
-                                  className="py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs font-bold"
-                               >
-                                  50.000
-                               </button>
-                               <button 
-                                  onClick={() => setPaidAmount(100000)}
-                                  className="py-2 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-800 text-xs font-bold"
-                               >
-                                  100.000
-                               </button>
-                           </div>
-                      </div>
-
-                      {/* Calculations Display */}
-                      <div className="space-y-3 bg-slate-950/50 p-4 rounded-xl border border-slate-800">
-                          <div className="flex justify-between items-center text-sm">
-                              <span className="text-slate-400">Total Tagihan</span>
-                              <span className="text-white font-mono">Rp {cartTotal.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-sm">
-                              <span className="text-slate-400">Uang Diterima</span>
-                              <span className="text-white font-mono">Rp {paidAmount.toLocaleString()}</span>
-                          </div>
-                          <div className="border-t border-slate-800 my-1"></div>
-                          <div className="flex justify-between items-center">
-                              <span className="text-slate-400 font-bold">
-                                  {changeAmount >= 0 ? 'Kembalian' : 'Kurang'}
-                              </span>
-                              <span className={`text-xl font-bold font-mono ${changeAmount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                  Rp {Math.abs(changeAmount).toLocaleString()}
-                              </span>
-                          </div>
+                      <div className="border-t border-dashed border-slate-600 my-2"></div>
+                      <div className="flex justify-between items-center p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl">
+                          <span className="text-emerald-200 font-bold uppercase text-xs tracking-wider">Total Uang Laci</span>
+                          <span className="text-2xl text-emerald-400 font-bold">Rp {(state.activeShift.startCash + state.activeShift.totalSales).toLocaleString()}</span>
                       </div>
                   </div>
 
-                  {/* Modal Footer */}
-                  <div className="p-4 bg-slate-800 border-t border-slate-700 grid grid-cols-2 gap-3">
-                      <button 
-                          onClick={() => setShowCheckoutModal(false)}
-                          className="py-3.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 font-bold transition-colors"
-                      >
-                          Batal
-                      </button>
-                      <button 
-                          onClick={processPayment}
-                          disabled={!isPaymentSufficient}
-                          className="py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold shadow-lg shadow-emerald-900/20 transition-colors"
-                      >
-                          Proses Bayar
-                      </button>
-                  </div>
+                  <button 
+                      onClick={handleCloseShift}
+                      className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-rose-900/30 transition-all mb-3"
+                  >
+                      Tutup Kasir & Logout
+                  </button>
+                  <button onClick={() => setIsCloseShiftModalOpen(false)} className="w-full py-3 bg-slate-800 text-slate-400 rounded-xl font-bold">Kembali</button>
               </div>
           </div>
       )}

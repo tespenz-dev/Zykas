@@ -1,17 +1,17 @@
 
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
-import { AppAction, AppState, TableStatus, Transaction, ProductCategory } from '../types';
+import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
 
 const initialState: AppState = {
   user: null,
+  activeShift: null, // Default null (Tutup)
   tables: MOCK_TABLES,
   products: MOCK_PRODUCTS,
   cart: [],
   transactions: [],
   users: MOCK_USERS,
   settings: {
-    // Masukkan URL Google Script Anda di sini agar default terisi
     googleScriptUrl: 'https://script.google.com/macros/s/AKfycby2p4AC1lIZol5B9MEMYJuRNC-zQFMCPaKD7CSj5EApGzzlKlT9Q4hA4uPRe03F5J4dig/exec', 
     storeName: 'Cue & Brew'
   }
@@ -19,13 +19,12 @@ const initialState: AppState = {
 
 const STORAGE_KEY = 'CUE_BREW_POS_DATA_V3';
 
-// Tipe status sinkronisasi
 export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
 
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  syncStatus: SyncStatus; // Expose status ke komponen lain
+  syncStatus: SyncStatus;
 } | undefined>(undefined);
 
 const loadState = (defaultState: AppState): AppState => {
@@ -39,7 +38,6 @@ const loadState = (defaultState: AppState): AppState => {
              ...t,
              hourlyRate: t.hourlyRate || BILLIARD_HOURLY_RATE
         }));
-        // Pastikan URL script tetap ada jika di localStorage kosong tapi di code ada
         const defaultSettings = defaultState.settings;
         const migratedSettings = {
             ...defaultSettings,
@@ -47,7 +45,13 @@ const loadState = (defaultState: AppState): AppState => {
             googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl
         };
         
-        return { ...parsed, tables: migratedTables, settings: migratedSettings };
+        return { 
+            ...parsed, 
+            tables: migratedTables, 
+            settings: migratedSettings,
+            // Restore active shift if exists
+            activeShift: parsed.activeShift || null 
+        };
       }
     }
   } catch (e) {
@@ -62,6 +66,27 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, user: action.payload };
     case 'LOGOUT':
       return { ...state, user: null };
+
+    // --- LOGIKA SHIFT KASIR ---
+    case 'OPEN_SHIFT': {
+        const { startCash, cashierName, cashierId } = action.payload;
+        const newShift: CashierShift = {
+            id: `SHIFT-${Date.now()}`,
+            cashierId,
+            cashierName,
+            startTime: Date.now(),
+            endTime: null,
+            startCash,
+            totalSales: 0,
+            status: 'OPEN'
+        };
+        return { ...state, activeShift: newShift };
+    }
+
+    case 'CLOSE_SHIFT': {
+        return { ...state, activeShift: null };
+    }
+    // --------------------------
     
     case 'START_TABLE': {
       const { tableId, duration, customer } = action.payload;
@@ -97,8 +122,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
         customerName: table.customerName
       };
 
+      // Update total penjualan di shift aktif jika ada
+      const updatedShift = state.activeShift 
+          ? { ...state.activeShift, totalSales: state.activeShift.totalSales + totalCost } 
+          : state.activeShift;
+
       return {
         ...state,
+        activeShift: updatedShift,
         transactions: [newTransaction, ...state.transactions],
         tables: state.tables.map(t => 
           t.id === tableId 
@@ -260,11 +291,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
         return t;
       });
 
+      // Update total penjualan di shift aktif
+      const updatedShift = state.activeShift 
+          ? { ...state.activeShift, totalSales: state.activeShift.totalSales + total } 
+          : state.activeShift;
+
       return {
         ...state,
         products: updatedProducts,
         tables: newTables,
         transactions: [newTransaction, ...state.transactions],
+        activeShift: updatedShift,
         cart: []
       };
     }
@@ -313,6 +350,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'ADD_USER':
       return { ...state, users: [...state.users, action.payload] };
 
+    case 'EDIT_USER': {
+        const updatedUsers = state.users.map(u => u.id === action.payload.id ? action.payload : u);
+        const updatedSession = state.user?.id === action.payload.id ? action.payload : state.user;
+        return { ...state, users: updatedUsers, user: updatedSession };
+    }
+
     case 'REMOVE_USER':
       return { ...state, users: state.users.filter(u => u.id !== action.payload) };
 
@@ -336,7 +379,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('IDLE');
   const firstRender = useRef(true);
 
-  // 1. Simpan ke LocalStorage setiap perubahan
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -345,49 +387,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [state]);
 
-  // 2. Auto-Sync ke Cloud (Debounce 5 detik)
   useEffect(() => {
-    // Lewati render pertama (initial load) agar tidak langsung upload saat buka app
     if (firstRender.current) {
         firstRender.current = false;
         return;
     }
-
-    // Jika URL belum disetting, jangan lakukan apa-apa
     if (!state.settings?.googleScriptUrl) {
         setSyncStatus('IDLE');
         return;
     }
-
-    // Set status ke PENDING/SYNCING (Biru Berputar)
     setSyncStatus('PENDING');
-
-    // Tunggu 5 detik tidak ada aktivitas baru upload
     const timer = setTimeout(() => {
         setSyncStatus('SYNCING');
-        
         fetch(state.settings.googleScriptUrl!, {
             method: 'POST',
-            mode: 'no-cors', // Penting untuk Google Script
-            headers: {
-                'Content-Type': 'text/plain',
-            },
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(state)
         })
-        .then(() => {
-            setSyncStatus('SUCCESS'); // Hijau
-        })
-        .catch((err) => {
-            console.error("Auto-sync failed", err);
-            setSyncStatus('ERROR'); // Merah
-        });
-
-    }, 5000); // 5000ms = 5 detik
-
-    // Jika ada perubahan state sebelum 5 detik, cancel timer sebelumnya (Debounce)
+        .then(() => setSyncStatus('SUCCESS'))
+        .catch(() => setSyncStatus('ERROR'));
+    }, 5000);
     return () => clearTimeout(timer);
-
-  }, [state]); // Trigger setiap state berubah (transaksi, stok, dll)
+  }, [state]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncStatus }}>
