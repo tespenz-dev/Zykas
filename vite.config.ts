@@ -4,14 +4,21 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  base: '/', 
   server: {
-    host: true, // Listen on all addresses
+    host: true,
     port: 3000,
   },
-  base: '/',
   build: {
     outDir: 'dist',
-    sourcemap: false, // Disable sourcemaps in production for smaller build
-    chunkSizeWarningLimit: 1600,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+        output: {
+            manualChunks: {
+                vendor: ['react', 'react-dom', 'recharts', 'lucide-react']
+            }
+        }
+    }
   }
 })
