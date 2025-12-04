@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X } from 'lucide-react';
+import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X, RefreshCcw } from 'lucide-react';
 import { Role, ProductCategory, AppState, User as UserType } from '../types';
 
 export const AdminView: React.FC = () => {
@@ -159,6 +159,19 @@ export const AdminView: React.FC = () => {
       setPhysicalStocks(prev => ({ ...prev, [id]: value }));
   };
 
+  const handleAdjustStock = (productId: string, physicalQty: number, systemQty: number, productName: string) => {
+      if (confirm(`SESUAIKAN STOK: \n\nAnda akan mengubah stok "${productName}" dari ${systemQty} menjadi ${physicalQty}.\n\nApakah Anda yakin perhitungan fisik sudah benar?`)) {
+          dispatch({ 
+              type: 'SET_PRODUCT_STOCK', 
+              payload: { productId, stock: physicalQty } 
+          });
+          // Clear the input for this item after sync
+          const newStocks = {...physicalStocks};
+          delete newStocks[productId];
+          setPhysicalStocks(newStocks);
+      }
+  };
+
   // User Management Handlers
   const handleOpenAddUser = () => {
       setEditingUser(null);
@@ -303,54 +316,81 @@ export const AdminView: React.FC = () => {
   const renderAudit = () => {
     const rawMaterials = state.products.filter(p => p.category === ProductCategory.RAW_MATERIAL);
     
+    // Calculate estimated total loss based on current physical inputs
+    let totalEstimatedLoss = 0;
+    rawMaterials.forEach(mat => {
+        const physicalStr = physicalStocks[mat.id];
+        if (physicalStr) {
+            const physical = parseFloat(physicalStr);
+            const diff = physical - mat.stock;
+            if (diff < 0) {
+                 const linkedProducts = state.products.filter(p => p.stockLinkedToId === mat.id);
+                 const maxPrice = linkedProducts.length > 0 ? Math.max(...linkedProducts.map(p => p.price)) : 0;
+                 const revenuePerUnit = maxPrice * (mat.yield || 0);
+                 totalEstimatedLoss += Math.abs(diff * revenuePerUnit);
+            }
+        }
+    });
+
     return (
         <div className="space-y-6 pb-20 md:pb-0">
+            {totalEstimatedLoss > 0 && (
+                <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl flex items-center justify-between animate-fade-in">
+                    <div className="flex items-center gap-3">
+                         <AlertTriangle className="text-rose-500" />
+                         <div>
+                             <div className="font-bold text-rose-500">Terdeteksi Potensi Kerugian</div>
+                             <div className="text-xs text-rose-300">Berdasarkan selisih stok fisik yang diinput</div>
+                         </div>
+                    </div>
+                    <div className="text-xl font-bold text-rose-500">
+                        Rp {totalEstimatedLoss.toLocaleString()}
+                    </div>
+                </div>
+            )}
+
             <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
                 <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
                     <ClipboardList className="text-amber-500" /> Audit Bahan Baku & Kecurangan
                 </h3>
                 <p className="text-slate-400 text-sm mb-6">
-                    Bandingkan stok fisik dengan stok sistem untuk mendeteksi kehilangan atau takaran yang tidak sesuai.
-                    <br/><span className="text-slate-500 italic">*Input sisa stok fisik (hasil timbangan/hitungan) pada kolom "Stok Fisik".</span>
+                    Bandingkan stok fisik dengan stok sistem. Masukkan jumlah real di kolom <strong>"Stok Fisik"</strong>, lalu klik tombol <strong>"Sesuaikan"</strong> jika ada perbedaan.
                 </p>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[800px]">
+                    <table className="w-full text-left min-w-[900px]">
                         <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs font-semibold">
                             <tr>
                                 <th className="p-4">Nama Bahan</th>
-                                <th className="p-4 text-center">Estimasi Porsi</th>
                                 <th className="p-4 text-center">Stok Sistem</th>
-                                <th className="p-4 text-center w-32">Stok Fisik</th>
+                                <th className="p-4 text-center w-32">Stok Fisik (Input)</th>
                                 <th className="p-4 text-center">Selisih</th>
                                 <th className="p-4 text-right">Estimasi Rugi</th>
+                                <th className="p-4 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
                             {rawMaterials.map(mat => {
                                 const systemStock = mat.stock;
                                 const physicalStockStr = physicalStocks[mat.id];
-                                const physicalStock = physicalStockStr !== undefined && physicalStockStr !== '' ? parseFloat(physicalStockStr) : systemStock;
+                                const hasInput = physicalStockStr !== undefined && physicalStockStr !== '';
+                                const physicalStock = hasInput ? parseFloat(physicalStockStr) : systemStock;
                                 const diff = physicalStock - systemStock;
                                 
                                 // Determine loss value
-                                // Find products linked to this material to guess "Revenue Loss"
                                 const linkedProducts = state.products.filter(p => p.stockLinkedToId === mat.id);
                                 const maxPrice = linkedProducts.length > 0 ? Math.max(...linkedProducts.map(p => p.price)) : 0;
-                                const revenuePerUnit = maxPrice * (mat.yield || 0); // e.g. 5000 * 45 = 225,000 per Unit (KG)
+                                const revenuePerUnit = maxPrice * (mat.yield || 0); 
                                 const lossValue = Math.abs(diff * revenuePerUnit);
                                 
                                 const isDiscrepancy = Math.abs(diff) > 0.001;
                                 const isLoss = diff < -0.001;
 
                                 return (
-                                    <tr key={mat.id} className="hover:bg-slate-700/30">
+                                    <tr key={mat.id} className="hover:bg-slate-700/30 transition-colors">
                                         <td className="p-4">
                                             <div className="font-bold text-white">{mat.name}</div>
-                                            <div className="text-xs text-slate-500">{mat.unit}</div>
-                                        </td>
-                                        <td className="p-4 text-center text-slate-300 font-mono text-sm">
-                                            {mat.yield || '-'}
+                                            <div className="text-xs text-slate-500">{mat.unit} | Yield: {mat.yield || '-'}</div>
                                         </td>
                                         <td className="p-4 text-center">
                                             <span className="font-mono text-blue-300 font-bold bg-blue-900/30 px-2 py-1 rounded">
@@ -382,12 +422,19 @@ export const AdminView: React.FC = () => {
                                                         <AlertTriangle size={12} />
                                                         Rp {lossValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                                     </div>
-                                                    <div className="text-[10px] text-slate-500 mt-1">
-                                                        ~ {Math.abs(diff * (mat.yield || 0)).toFixed(1)} Porsi
-                                                    </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-slate-600">-</span>
+                                            )}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            {isDiscrepancy && hasInput && (
+                                                <button 
+                                                    onClick={() => handleAdjustStock(mat.id, physicalStock, systemStock, mat.name)}
+                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1 mx-auto shadow-lg shadow-emerald-900/20"
+                                                >
+                                                    <RefreshCcw size={14} /> Sesuaikan
+                                                </button>
                                             )}
                                         </td>
                                     </tr>

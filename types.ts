@@ -108,6 +108,7 @@ export type AppAction =
   | { type: 'CLEAR_CART' }
   | { type: 'CHECKOUT'; payload: { total: number; cashierName: string; customerName: string } }
   | { type: 'UPDATE_STOCK'; payload: { productId: string; quantity: number } }
+  | { type: 'SET_PRODUCT_STOCK'; payload: { productId: string; stock: number } }
   | { type: 'ADD_NEW_PRODUCT'; payload: Product }
   | { type: 'EDIT_PRODUCT'; payload: Product }
   | { type: 'DELETE_PRODUCT'; payload: string }

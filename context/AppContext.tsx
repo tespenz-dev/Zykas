@@ -317,6 +317,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case 'SET_PRODUCT_STOCK': {
+      return {
+        ...state,
+        products: state.products.map(p => 
+          p.id === action.payload.productId
+            ? { ...p, stock: action.payload.stock }
+            : p
+        )
+      };
+    }
+
     case 'ADD_NEW_PRODUCT':
       return { ...state, products: [...state.products, action.payload] };
 
