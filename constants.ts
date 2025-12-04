@@ -8,6 +8,12 @@ export const INITIAL_USERS: User[] = [
 
 export const BILLIARD_HOURLY_RATE = 20000; // Updated default rate
 
+// KUNCI RAHASIA GOOGLE AUTHENTICATOR (Base32)
+// Kode ini yang menghubungkan App dengan HP Anda.
+// Jangan disebar sembarangan.
+export const GOOGLE_AUTH_SECRET = 'JBSWY3DPEHPK3PXP'; 
+// Jika ingin ganti, gunakan generator Base32 random (16-32 karakter huruf kapital A-Z dan angka 2-7)
+
 export const INITIAL_TABLES: BilliardTable[] = Array.from({ length: 7 }, (_, i) => ({
   id: i + 1,
   name: `Meja ${i + 1}`,
