@@ -75,7 +75,7 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="z-10 text-xs text-slate-600">
-             © 2024 Cue & Brew POS. Version 1.1.0 (Update Kasir)
+             © 2024 Cue & Brew POS. Version 1.2.0 (FINAL FIX)
           </div>
         </div>
 
