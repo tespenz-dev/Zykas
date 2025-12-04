@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
@@ -75,7 +76,10 @@ const TableCard: React.FC<{
         </div>
       ) : (
          <div className="flex-1 flex items-center justify-center relative z-10">
-             <span className="text-slate-500 text-xs italic">Tap untuk sewa</span>
+             <div className="text-center">
+                <span className="text-emerald-400 font-bold text-sm block">+ Tambah</span>
+                <span className="text-slate-500 text-[10px] italic">1 Klik = 1 Jam</span>
+             </div>
          </div>
       )}
 
@@ -153,8 +157,8 @@ export const MenuView: React.FC = () => {
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false); // Untuk Tutup Kasir
   const [startCashInput, setStartCashInput] = useState('');
 
-  // Table Action Modals
-  const [showTableModal, setShowTableModal] = useState<'START' | 'TOPUP' | 'MOVE' | null>(null);
+  // Table Action Modals (Topup & Move only now)
+  const [showTableModal, setShowTableModal] = useState<'TOPUP' | 'MOVE' | null>(null);
   const [duration, setDuration] = useState(60); // Default 60 mins
   const [targetTableId, setTargetTableId] = useState<number | null>(null);
 
@@ -184,7 +188,7 @@ export const MenuView: React.FC = () => {
       setIsCloseShiftModalOpen(false);
   };
 
-  const handleTableAction = (table: BilliardTable, action: 'START' | 'TOPUP' | 'MOVE') => {
+  const handleTableAction = (table: BilliardTable, action: 'TOPUP' | 'MOVE') => {
       setActiveTableId(table.id);
       setShowTableModal(action);
       setDuration(60);
@@ -194,16 +198,7 @@ export const MenuView: React.FC = () => {
   const handleConfirmTableAction = () => {
       if (!activeTableId) return;
 
-      if (showTableModal === 'START') {
-          if (!customerName.trim()) {
-              alert('Nama Pelanggan wajib diisi!');
-              return;
-          }
-          dispatch({ 
-              type: 'START_TABLE', 
-              payload: { tableId: activeTableId, duration, customer: customerName } 
-          });
-      } else if (showTableModal === 'TOPUP') {
+      if (showTableModal === 'TOPUP') {
           dispatch({ 
               type: 'TOPUP_TABLE', 
               payload: { tableId: activeTableId, duration } 
@@ -343,7 +338,7 @@ export const MenuView: React.FC = () => {
                         <TableCard 
                             key={table.id} 
                             table={table} 
-                            onSelect={() => handleTableAction(table, 'START')}
+                            onSelect={(t) => dispatch({ type: 'ADD_TABLE_TO_CART', payload: t })}
                             onTopUp={() => handleTableAction(table, 'TOPUP')}
                             onStop={(t) => dispatch({ type: 'STOP_TABLE', payload: { tableId: t.id } })}
                             onMove={() => handleTableAction(table, 'MOVE')}
@@ -407,7 +402,7 @@ export const MenuView: React.FC = () => {
                          <div>
                              <div className="text-white font-medium text-sm">{item.name}</div>
                              <div className="text-xs text-slate-500">
-                                 {item.quantity} x Rp {item.price.toLocaleString()}
+                                 {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
                              </div>
                          </div>
                          <div className="flex items-center gap-3">
@@ -452,28 +447,14 @@ export const MenuView: React.FC = () => {
 
       {/* --- MODALS --- */}
 
-      {/* 1. Modal Table Action (Start/Topup/Move) */}
+      {/* 1. Modal Table Action (Topup/Move) */}
       {showTableModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
                   <h3 className="text-xl font-bold text-white mb-4">
-                      {showTableModal === 'START' ? 'Mulai Sewa Meja' : showTableModal === 'TOPUP' ? 'Tambah Waktu' : 'Pindah Meja'}
+                      {showTableModal === 'TOPUP' ? 'Tambah Waktu' : 'Pindah Meja'}
                   </h3>
                   
-                  {showTableModal === 'START' && (
-                      <div className="mb-4">
-                          <label className="block text-sm text-slate-400 mb-1">Nama Tamu</label>
-                          <input 
-                              type="text" 
-                              value={customerName}
-                              onChange={(e) => setCustomerName(e.target.value)}
-                              className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none"
-                              placeholder="Masukkan nama..."
-                              autoFocus
-                          />
-                      </div>
-                  )}
-
                   {showTableModal !== 'MOVE' && (
                        <div className="mb-6">
                           <label className="block text-sm text-slate-400 mb-1">Durasi (Menit)</label>
