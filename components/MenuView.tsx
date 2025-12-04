@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
-import { Play, Square, Clock, ArrowRightLeft, PlusCircle, Search, ShoppingCart, Plus, Trash2, Coffee, ChevronDown, ChevronUp, User, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Clock, ArrowRightLeft, PlusCircle, Search, ShoppingCart, Plus, Trash2, Coffee, ChevronDown, ChevronUp, User, CheckCircle, AlertCircle, X, Square } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 
 // --- Subcomponents ---
