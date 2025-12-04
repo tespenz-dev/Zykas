@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale } from 'lucide-react';
+import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload } from 'lucide-react';
 import { Role, ProductCategory } from '../types';
 
 export const AdminView: React.FC = () => {
   const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'INVENTORY' | 'AUDIT' | 'USERS' | 'SYSTEM'>('DASHBOARD');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Audit State
   const [physicalStocks, setPhysicalStocks] = useState<Record<string, string>>({});
@@ -36,10 +38,50 @@ export const AdminView: React.FC = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "backup_pos.json");
+    downloadAnchorNode.setAttribute("download", `backup_pos_${new Date().toISOString().slice(0,10)}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileObj = event.target.files && event.target.files[0];
+    if (!fileObj) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result;
+      if (typeof content === 'string') {
+        try {
+          const parsedData = JSON.parse(content);
+          
+          // Basic validation to check if it's a valid backup file
+          if (parsedData.users && parsedData.products && parsedData.tables) {
+            if (confirm('Apakah Anda yakin ingin me-restore data ini? Data saat ini akan tertimpa.')) {
+                // Save to localStorage directly
+                localStorage.setItem('CUE_BREW_POS_DATA_V3', content);
+                alert('Data berhasil dipulihkan! Halaman akan dimuat ulang.');
+                window.location.reload();
+            }
+          } else {
+            alert('Format file tidak valid. Pastikan file adalah hasil backup dari aplikasi ini.');
+          }
+        } catch (error) {
+          console.error('Error parsing JSON:', error);
+          alert('Gagal membaca file. Pastikan file JSON valid.');
+        }
+      }
+    };
+    reader.readAsText(fileObj);
+    
+    // Reset input
+    event.target.value = '';
   };
 
   const handlePhysicalStockChange = (id: string, value: string) => {
@@ -267,16 +309,34 @@ export const AdminView: React.FC = () => {
     <div className="space-y-6 pb-20 md:pb-0">
        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
           <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Database size={24}/> Database System</h3>
-          <p className="text-slate-400 mb-6">Kelola penyimpanan data lokal aplikasi.</p>
+          <p className="text-slate-400 mb-6">
+              Aplikasi ini menggunakan penyimpanan lokal (di perangkat). Agar data sama di semua perangkat (Tablet/Laptop), 
+              lakukan <strong>Backup</strong> di perangkat utama lalu <strong>Restore</strong> di perangkat lain.
+          </p>
           
+          <input 
+             type="file" 
+             ref={fileInputRef} 
+             style={{ display: 'none' }} 
+             accept=".json" 
+             onChange={handleFileChange}
+          />
+
           <div className="flex flex-col md:flex-row gap-4">
               <button 
                   onClick={handleExport}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
               >
-                  <Download size={20} /> Backup Data (JSON)
+                  <Download size={20} /> Backup Data (Export)
               </button>
               
+              <button 
+                  onClick={handleImportClick}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
+              >
+                  <Upload size={20} /> Restore Data (Import)
+              </button>
+
               <button 
                   onClick={handleReset}
                   className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
@@ -285,7 +345,7 @@ export const AdminView: React.FC = () => {
               </button>
           </div>
           <div className="mt-4 p-4 bg-rose-900/20 border border-rose-500/20 rounded-xl text-rose-400 text-sm">
-             <strong>Perhatian:</strong> Factory Reset akan menghapus semua riwayat transaksi, perubahan stok, dan pengaturan pengguna. Gunakan hanya jika aplikasi mengalami error.
+             <strong>Perhatian:</strong> Factory Reset akan menghapus semua riwayat transaksi. Selalu Backup data secara berkala.
           </div>
        </div>
     </div>
