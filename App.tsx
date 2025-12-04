@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
@@ -8,6 +9,7 @@ import { AdminView } from './components/AdminView';
 import { HistoryView } from './components/HistoryView';
 import { StockView } from './components/StockView';
 import { SecurityGate } from './components/SecurityGate';
+import { AUTO_LOCK_MINUTES } from './constants';
 
 const MainLayout: React.FC = () => {
   const { state } = useApp();
@@ -58,6 +60,44 @@ const MainLayout: React.FC = () => {
 export default function App() {
   const [isStoreUnlocked, setIsStoreUnlocked] = useState(false);
   const [checking, setChecking] = useState(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const lockStore = () => {
+    setIsStoreUnlocked(false);
+    sessionStorage.removeItem('STORE_UNLOCKED');
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+  };
+
+  const resetIdleTimer = () => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    
+    if (isStoreUnlocked) {
+      idleTimerRef.current = setTimeout(() => {
+        console.log("Auto-locking due to inactivity...");
+        lockStore();
+      }, AUTO_LOCK_MINUTES * 60 * 1000);
+    }
+  };
+
+  // Setup Activity Listeners
+  useEffect(() => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    const handleActivity = () => {
+      resetIdleTimer();
+    };
+
+    if (isStoreUnlocked) {
+      events.forEach(event => document.addEventListener(event, handleActivity));
+      resetIdleTimer(); // Start timer immediately
+    }
+
+    return () => {
+      events.forEach(event => document.removeEventListener(event, handleActivity));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [isStoreUnlocked]);
+
 
   useEffect(() => {
     // Cek apakah sesi sudah terbuka sebelumnya

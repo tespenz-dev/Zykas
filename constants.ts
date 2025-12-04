@@ -1,4 +1,5 @@
 
+
 import { BilliardTable, Product, ProductCategory, Role, TableStatus, User } from './types';
 
 export const INITIAL_USERS: User[] = [
@@ -13,6 +14,9 @@ export const BILLIARD_HOURLY_RATE = 20000; // Updated default rate
 // Jangan disebar sembarangan.
 export const GOOGLE_AUTH_SECRET = 'JBSWY3DPEHPK3PXP'; 
 // Jika ingin ganti, gunakan generator Base32 random (16-32 karakter huruf kapital A-Z dan angka 2-7)
+
+// Durasi Auto-Lock jika tidak ada aktivitas (dalam menit)
+export const AUTO_LOCK_MINUTES = 15; 
 
 export const INITIAL_TABLES: BilliardTable[] = Array.from({ length: 7 }, (_, i) => ({
   id: i + 1,
