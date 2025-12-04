@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
@@ -269,10 +268,10 @@ export const MenuView: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
         {/* Header & Tabs */}
-        <div className="p-4 md:p-6 shrink-0">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
                  {/* Tabs */}
-                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full md:w-auto">
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
                         className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shadow-sm ${
@@ -294,21 +293,23 @@ export const MenuView: React.FC = () => {
                     ))}
                  </div>
 
-                 {/* SHIFT STATUS BUTTON */}
-                 <div className="hidden md:block">
+                 {/* SHIFT STATUS BUTTON (Visible on ALL screens) */}
+                 <div className="w-full xl:w-auto flex justify-end">
                      {isShiftActive ? (
                          <button 
                             onClick={() => setIsCloseShiftModalOpen(true)}
-                            className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-emerald-900/50 transition-colors"
+                            className="w-full md:w-auto bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-900/50 transition-colors shadow-lg shadow-emerald-900/10"
                          >
-                            <Unlock size={16} /> KASIR BUKA
+                            <Unlock size={18} /> 
+                            <span>KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</span>
                          </button>
                      ) : (
                          <button 
                             onClick={() => setIsShiftModalOpen(true)}
-                            className="bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse"
+                            className="w-full md:w-auto bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse shadow-lg shadow-rose-900/10"
                          >
-                            <Lock size={16} /> KASIR TUTUP
+                            <Lock size={18} /> 
+                            <span>KASIR TUTUP - KLIK UNTUK BUKA</span>
                          </button>
                      )}
                  </div>
@@ -357,28 +358,22 @@ export const MenuView: React.FC = () => {
          
          {/* Cart Header */}
          <div className="p-4 border-b border-slate-800 bg-slate-900 rounded-t-3xl md:rounded-none flex flex-col gap-3">
-             {/* Operator Info Block */}
-             <div className="flex items-center justify-between">
+             {/* Operator Info Block - PROMINENT DISPLAY */}
+             <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                  <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 font-bold border border-slate-700">
+                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
                          <User size={20} />
                      </div>
                      <div>
                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator Bertugas</div>
-                         <div className="text-white font-bold">{state.user?.name}</div>
+                         <div className="text-white font-bold text-sm">{state.user?.name}</div>
                      </div>
                  </div>
-                 <div className="md:hidden">
-                    {/* Mobile Shift Button */}
-                    {isShiftActive ? (
-                         <button onClick={() => setIsCloseShiftModalOpen(true)} className="text-[10px] bg-emerald-900/50 text-emerald-400 px-2 py-1 rounded border border-emerald-500/30">BUKA</button>
-                    ) : (
-                         <button onClick={() => setIsShiftModalOpen(true)} className="text-[10px] bg-rose-900/50 text-rose-400 px-2 py-1 rounded border border-rose-500/30">TUTUP</button>
-                    )}
-                 </div>
+                 {/* Status indicator */}
+                 <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
              </div>
 
-             <div className="flex items-center gap-2 text-emerald-400">
+             <div className="flex items-center gap-2 text-emerald-400 mt-2">
                  <ShoppingCart size={20} />
                  <h2 className="font-bold text-lg">Keranjang Pesanan ({state.cart.reduce((a, b) => a + b.quantity, 0)})</h2>
              </div>
