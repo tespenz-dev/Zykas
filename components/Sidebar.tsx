@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Role } from '../types';
-import { LayoutDashboard, LogOut, UtensilsCrossed, History, Box, Cloud, RefreshCw, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, LogOut, UtensilsCrossed, History, Box, Cloud, RefreshCw, CheckCircle, AlertCircle, Lock, Unlock } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
@@ -46,13 +45,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
       return "Cloud Ready";
   };
 
+  const isShiftActive = !!state.activeShift;
+
   return (
     <div className="w-full h-16 md:w-24 md:h-full bg-slate-900 border-t md:border-t-0 md:border-r border-slate-800 flex flex-row md:flex-col items-center justify-between md:justify-start md:py-8 px-4 md:px-0 shadow-2xl md:shadow-none z-50">
-      {/* Brand Icon - Hidden on mobile to save space, visible on tablet+ */}
-      <div className="hidden md:block mb-12">
+      {/* Brand Icon */}
+      <div className="hidden md:block mb-8">
         <div className="w-12 h-12 bg-gradient-to-tr from-emerald-400 to-cyan-500 rounded-xl shadow-lg shadow-emerald-900/50 flex items-center justify-center text-slate-900 font-bold text-xl">
             C&B
         </div>
+      </div>
+
+      {/* CASHIER STATUS INDICATOR (NEW) */}
+      <div className="hidden md:flex flex-col items-center justify-center mb-6 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50 w-16 mx-auto" title={isShiftActive ? "Kasir Buka" : "Kasir Tutup"}>
+          {isShiftActive ? (
+              <Unlock size={20} className="text-emerald-400" />
+          ) : (
+              <Lock size={20} className="text-rose-400 animate-pulse" />
+          )}
+          <span className={`text-[9px] mt-1 font-bold font-mono text-center leading-tight ${isShiftActive ? 'text-emerald-400' : 'text-rose-400'}`}>
+             {isShiftActive ? 'OPEN' : 'CLOSE'}
+          </span>
       </div>
 
       <nav className="flex-1 flex flex-row md:flex-col justify-around md:justify-start md:space-y-6 w-full md:px-4">
@@ -72,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
         ))}
       </nav>
 
-      {/* CLOUD STATUS INDICATOR (NEW) */}
+      {/* CLOUD STATUS INDICATOR */}
       <div className="hidden md:flex flex-col items-center justify-center mb-6 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50 w-16 mx-auto" title={getStatusText()}>
           {renderCloudStatus()}
           <span className="text-[9px] text-slate-500 mt-1 font-mono text-center leading-tight">

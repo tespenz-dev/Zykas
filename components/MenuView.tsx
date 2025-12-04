@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
-import { Clock, ArrowRightLeft, PlusCircle, Search, ShoppingCart, Plus, Trash2, Coffee, ChevronDown, ChevronUp, User, CheckCircle, AlertCircle, X, Square, Shield, Lock, Unlock, DollarSign, Wallet } from 'lucide-react';
+import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 
 // --- Subcomponents ---
@@ -268,29 +267,37 @@ export const MenuView: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
         {/* Header & Tabs */}
-        <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20">
-            {/* SHIFT STATUS BUTTON (MOVED TO TOP FOR VISIBILITY) */}
-            <div className="mb-4">
+        <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20 space-y-4">
+            
+            {/* --- TOMBOL UTAMA BUKA/TUTUP KASIR (POSISI PALING ATAS) --- */}
+            <div className="w-full">
                  {isShiftActive ? (
                      <button 
                         onClick={() => setIsCloseShiftModalOpen(true)}
-                        className="w-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-900/50 transition-colors shadow-lg shadow-emerald-900/10"
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white border-b-4 border-emerald-800 px-4 py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-[0.99] transition-all"
                      >
-                        <Unlock size={18} /> 
-                        <span>KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</span>
+                        <Unlock size={24} className="text-white" /> 
+                        <div className="text-left">
+                            <div className="text-xs uppercase text-emerald-200 font-bold tracking-wider">Status Kasir</div>
+                            <div className="text-lg leading-none">KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</div>
+                        </div>
                      </button>
                  ) : (
                      <button 
                         onClick={() => setIsShiftModalOpen(true)}
-                        className="w-full bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse shadow-lg shadow-rose-900/10"
+                        className="w-full bg-rose-600 hover:bg-rose-500 text-white border-b-4 border-rose-800 px-4 py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-xl animate-pulse transform active:scale-[0.99] transition-all"
                      >
-                        <Lock size={18} /> 
-                        <span>KASIR TUTUP - KLIK UNTUK BUKA</span>
+                        <Lock size={24} className="text-white" /> 
+                        <div className="text-left">
+                            <div className="text-xs uppercase text-rose-200 font-bold tracking-wider">Status Kasir</div>
+                            <div className="text-lg leading-none">KASIR TUTUP - TAP UNTUK BUKA</div>
+                        </div>
                      </button>
                  )}
             </div>
+            {/* ---------------------------------------------------------- */}
 
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                  {/* Tabs */}
                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto">
                     <button 
