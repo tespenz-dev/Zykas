@@ -264,40 +264,12 @@ export const MenuView: React.FC = () => {
         {/* Header & Tabs */}
         <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20 space-y-4">
             
-            {/* --- TOMBOL UTAMA BUKA/TUTUP KASIR (POSISI PALING ATAS) --- */}
-            <div className="w-full">
-                 {isShiftActive ? (
-                     <button 
-                        onClick={() => setIsCloseShiftModalOpen(true)}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white border-b-4 border-emerald-800 px-4 py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-xl transform active:scale-[0.99] transition-all"
-                     >
-                        <Unlock size={24} className="text-white" /> 
-                        <div className="text-left">
-                            <div className="text-xs uppercase text-emerald-200 font-bold tracking-wider">Status Kasir</div>
-                            <div className="text-lg leading-none">KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</div>
-                        </div>
-                     </button>
-                 ) : (
-                     <button 
-                        onClick={() => setIsShiftModalOpen(true)}
-                        className="w-full bg-rose-600 hover:bg-rose-500 text-white border-b-4 border-rose-800 px-4 py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-xl animate-pulse transform active:scale-[0.99] transition-all"
-                     >
-                        <Lock size={24} className="text-white" /> 
-                        <div className="text-left">
-                            <div className="text-xs uppercase text-rose-200 font-bold tracking-wider">Status Kasir</div>
-                            <div className="text-lg leading-none">KASIR TUTUP - TAP UNTUK BUKA</div>
-                        </div>
-                     </button>
-                 )}
-            </div>
-            {/* ---------------------------------------------------------- */}
-
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-                 {/* Tabs */}
-                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
+                 {/* Tabs (Left) */}
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto md:flex-1">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
-                        className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shadow-sm ${
+                        className={`px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                             activeTab === 'BILLIARD' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                         }`}
                     >
@@ -307,13 +279,34 @@ export const MenuView: React.FC = () => {
                         <button 
                             key={cat}
                             onClick={() => setActiveTab(cat)}
-                            className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap shadow-sm ${
+                            className={`px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                                 activeTab === cat ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                             }`}
                         >
                             {cat}
                         </button>
                     ))}
+                 </div>
+
+                 {/* Status Kasir Button (Right, Compact) */}
+                 <div className="shrink-0 w-full xl:w-auto">
+                     {isShiftActive ? (
+                         <button 
+                            onClick={() => setIsCloseShiftModalOpen(true)}
+                            className="w-full xl:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all text-sm"
+                         >
+                            <Unlock size={18} className="text-emerald-200" /> 
+                            <span>KASIR BUKA</span>
+                         </button>
+                     ) : (
+                         <button 
+                            onClick={() => setIsShiftModalOpen(true)}
+                            className="w-full xl:w-auto bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse transition-all text-sm"
+                         >
+                            <Lock size={18} className="text-rose-200" /> 
+                            <span>KASIR TUTUP</span>
+                         </button>
+                     )}
                  </div>
             </div>
 
@@ -325,7 +318,7 @@ export const MenuView: React.FC = () => {
                     placeholder="Cari meja atau menu..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner text-sm"
                 />
             </div>
         </div>

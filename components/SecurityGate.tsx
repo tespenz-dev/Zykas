@@ -40,14 +40,14 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-y-auto">
       {/* Background Ambience */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none fixed">
           <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px]"></div>
           <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px]"></div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md relative z-10">
+      <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md relative z-10 my-auto">
         <div className="flex justify-center mb-8">
           <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 ${error ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-800 text-emerald-400 border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.2)]'}`}>
             {error ? <Lock size={40} /> : <ShieldCheck size={40} />}
@@ -87,7 +87,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
         </form>
 
         <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-            {/* TOMBOL SETUP YANG LEBIH MENCUAL DAN BESAR */}
+            {/* TOMBOL SETUP YANG LEBIH MENCOLOK DAN BESAR */}
             <button 
                 onClick={() => setShowSetup(!showSetup)}
                 className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
@@ -107,6 +107,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
                     </div>
                     <ol className="text-xs text-slate-400 space-y-3 list-decimal pl-4">
                         <li>Install <strong>Google Authenticator</strong> di HP Anda.</li>
+                        {/* PERBAIKAN: Menggunakan entitas HTML &rarr; menggantikan karakter -> yang menyebabkan error build */}
                         <li>Buka App &rarr; Tekan <strong>(+)</strong> &rarr; <strong>Enter a setup key</strong>.</li>
                         <li>Account name: <span className="text-white font-bold">Zykas POS</span></li>
                         <li>Your key: 
