@@ -1,6 +1,5 @@
 
-
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
 import { AppAction, AppState, TableStatus, Transaction, ProductCategory } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
 
@@ -12,35 +11,41 @@ const initialState: AppState = {
   transactions: [],
   users: MOCK_USERS,
   settings: {
-    googleScriptUrl: '',
+    // Masukkan URL Google Script Anda di sini agar default terisi
+    googleScriptUrl: 'https://script.google.com/macros/s/AKfycby2p4AC1lIZol5B9MEMYJuRNC-zQFMCPaKD7CSj5EApGzzlKlT9Q4hA4uPRe03F5J4dig/exec', 
     storeName: 'Cue & Brew'
   }
 };
 
-// Changed version to V3 to apply table structure changes
 const STORAGE_KEY = 'CUE_BREW_POS_DATA_V3';
+
+// Tipe status sinkronisasi
+export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
 
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
+  syncStatus: SyncStatus; // Expose status ke komponen lain
 } | undefined>(undefined);
 
-// Helper to safely load state from localStorage
 const loadState = (defaultState: AppState): AppState => {
   if (typeof window === 'undefined') return defaultState;
   try {
     const serializedState = localStorage.getItem(STORAGE_KEY);
     if (serializedState) {
       const parsed = JSON.parse(serializedState);
-      // Simple validation to ensure critical fields exist
       if (parsed.tables && parsed.products && parsed.users) {
-        // Ensure tables have hourlyRate (migration for V2 -> V3)
         const migratedTables = parsed.tables.map((t: any) => ({
              ...t,
              hourlyRate: t.hourlyRate || BILLIARD_HOURLY_RATE
         }));
-        // Ensure settings exist
-        const migratedSettings = parsed.settings || { googleScriptUrl: '', storeName: 'Cue & Brew' };
+        // Pastikan URL script tetap ada jika di localStorage kosong tapi di code ada
+        const defaultSettings = defaultState.settings;
+        const migratedSettings = {
+            ...defaultSettings,
+            ...(parsed.settings || {}),
+            googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl
+        };
         
         return { ...parsed, tables: migratedTables, settings: migratedSettings };
       }
@@ -59,7 +64,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, user: null };
     
     case 'START_TABLE': {
-      // Manual start (backup)
       const { tableId, duration, customer } = action.payload;
       return {
         ...state,
@@ -76,7 +80,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
       const table = state.tables.find(t => t.id === tableId);
       if (!table || !table.startTime) return state;
 
-      // Calculate final cost based on elapsed time using TABLE SPECIFIC RATE
       const rate = table.hourlyRate || BILLIARD_HOURLY_RATE;
       const now = Date.now();
       const durationHours = (now - table.startTime) / (1000 * 60 * 60);
@@ -136,7 +139,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'ADD_PRODUCT_TO_CART': {
       const product = action.payload;
-      // Safety check if product exists
       if (!product || !product.id) return state;
 
       const existingItem = state.cart.find(item => item.itemId === product.id && item.itemType === 'PRODUCT');
@@ -163,7 +165,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'ADD_TABLE_TO_CART': {
       const table = action.payload;
-      // Safety check
       if (!table || !table.id) return state;
 
       const tableItemId = `table-${table.id}`;
@@ -174,7 +175,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       if (existingItem) {
         newCart = state.cart.map(item => 
           item.itemId === tableItemId
-            ? { ...item, quantity: item.quantity + 1 } // Increment hours
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       } else {
@@ -183,7 +184,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
           itemType: 'BILLIARD',
           name: `Sewa ${table.name}`, 
           price: rate, 
-          quantity: 1, // 1 Hour default
+          quantity: 1, 
           tableId: table.id
         }];
       }
@@ -199,11 +200,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'CHECKOUT': {
       const { total, cashierName, customerName } = action.payload;
-      
-      // Ensure transaction ID is unique
       const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Create Transaction Record
       const newTransaction: Transaction = {
         id: txId,
         date: new Date().toISOString(),
@@ -215,14 +213,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
         customerName: customerName || 'Pelanggan Umum'
       };
       
-      // 1. Update Product Stock (Handle Linked Stock & Raw Material Yield)
       let updatedProducts = [...state.products];
 
       state.cart.forEach(cartItem => {
           if (cartItem.itemType === 'PRODUCT') {
               const product = state.products.find(p => p.id === cartItem.itemId);
               if (product) {
-                  // Determine which product ID to deduct stock from
                   const targetStockId = product.stockLinkedToId || product.id;
                   const targetProductIndex = updatedProducts.findIndex(p => p.id === targetStockId);
                   
@@ -230,10 +226,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
                       const targetProduct = updatedProducts[targetProductIndex];
                       let deduction = cartItem.quantity;
                       
-                      // Special handling for Raw Materials with Yield
                       if (targetProduct.category === ProductCategory.RAW_MATERIAL && targetProduct.yield && targetProduct.yield > 0) {
-                          // Deduct portion of unit based on yield
-                          // e.g. 1 cup sold. Yield is 50 cups per Unit. Deduct 1/50 = 0.02 Unit.
                           deduction = cartItem.quantity / targetProduct.yield;
                       }
 
@@ -246,23 +239,20 @@ function appReducer(state: AppState, action: AppAction): AppState {
           }
       });
 
-      // 2. Start Tables found in Cart (or Topup if already occupied)
       const newTables = state.tables.map(t => {
         const cartItem = state.cart.find(c => c.itemType === 'BILLIARD' && c.tableId === t.id);
         if (cartItem) {
           if (t.status === TableStatus.OCCUPIED) {
-            // Topup Logic: Just add duration
             return {
               ...t,
               durationMinutes: t.durationMinutes + (cartItem.quantity * 60)
             };
           } else {
-            // New Session Logic
             return {
               ...t,
               status: TableStatus.OCCUPIED,
               startTime: Date.now(),
-              durationMinutes: cartItem.quantity * 60, // Convert hours to minutes
+              durationMinutes: cartItem.quantity * 60,
               customerName: customerName || 'Pelanggan Umum'
             };
           }
@@ -330,7 +320,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         return { ...state, settings: { ...state.settings, ...action.payload } };
 
     case 'IMPORT_DATA':
-        return { ...action.payload, user: state.user }; // Keep current logged in user
+        return { ...action.payload, user: state.user };
 
     case 'RESET_APP':
       localStorage.removeItem(STORAGE_KEY);
@@ -342,10 +332,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
 }
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Use loadState to initialize state from localStorage if available
   const [state, dispatch] = useReducer(appReducer, initialState, loadState);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('IDLE');
+  const firstRender = useRef(true);
 
-  // Save state to localStorage whenever it changes
+  // 1. Simpan ke LocalStorage setiap perubahan
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -354,8 +345,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [state]);
 
+  // 2. Auto-Sync ke Cloud (Debounce 5 detik)
+  useEffect(() => {
+    // Lewati render pertama (initial load) agar tidak langsung upload saat buka app
+    if (firstRender.current) {
+        firstRender.current = false;
+        return;
+    }
+
+    // Jika URL belum disetting, jangan lakukan apa-apa
+    if (!state.settings?.googleScriptUrl) {
+        setSyncStatus('IDLE');
+        return;
+    }
+
+    // Set status ke PENDING/SYNCING (Biru Berputar)
+    setSyncStatus('PENDING');
+
+    // Tunggu 5 detik tidak ada aktivitas baru upload
+    const timer = setTimeout(() => {
+        setSyncStatus('SYNCING');
+        
+        fetch(state.settings.googleScriptUrl!, {
+            method: 'POST',
+            mode: 'no-cors', // Penting untuk Google Script
+            headers: {
+                'Content-Type': 'text/plain',
+            },
+            body: JSON.stringify(state)
+        })
+        .then(() => {
+            setSyncStatus('SUCCESS'); // Hijau
+        })
+        .catch((err) => {
+            console.error("Auto-sync failed", err);
+            setSyncStatus('ERROR'); // Merah
+        });
+
+    }, 5000); // 5000ms = 5 detik
+
+    // Jika ada perubahan state sebelum 5 detik, cancel timer sebelumnya (Debounce)
+    return () => clearTimeout(timer);
+
+  }, [state]); // Trigger setiap state berubah (transaksi, stok, dll)
+
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, syncStatus }}>
       {children}
     </AppContext.Provider>
   );
