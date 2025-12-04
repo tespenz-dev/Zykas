@@ -269,6 +269,27 @@ export const MenuView: React.FC = () => {
         
         {/* Header & Tabs */}
         <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20">
+            {/* SHIFT STATUS BUTTON (MOVED TO TOP FOR VISIBILITY) */}
+            <div className="mb-4">
+                 {isShiftActive ? (
+                     <button 
+                        onClick={() => setIsCloseShiftModalOpen(true)}
+                        className="w-full bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-900/50 transition-colors shadow-lg shadow-emerald-900/10"
+                     >
+                        <Unlock size={18} /> 
+                        <span>KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</span>
+                     </button>
+                 ) : (
+                     <button 
+                        onClick={() => setIsShiftModalOpen(true)}
+                        className="w-full bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse shadow-lg shadow-rose-900/10"
+                     >
+                        <Lock size={18} /> 
+                        <span>KASIR TUTUP - KLIK UNTUK BUKA</span>
+                     </button>
+                 )}
+            </div>
+
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
                  {/* Tabs */}
                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto">
@@ -291,27 +312,6 @@ export const MenuView: React.FC = () => {
                             {cat}
                         </button>
                     ))}
-                 </div>
-
-                 {/* SHIFT STATUS BUTTON (Visible on ALL screens) */}
-                 <div className="w-full xl:w-auto flex justify-end">
-                     {isShiftActive ? (
-                         <button 
-                            onClick={() => setIsCloseShiftModalOpen(true)}
-                            className="w-full md:w-auto bg-emerald-900/30 text-emerald-400 border border-emerald-500/50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-900/50 transition-colors shadow-lg shadow-emerald-900/10"
-                         >
-                            <Unlock size={18} /> 
-                            <span>KASIR BUKA (ID: {state.activeShift?.id.slice(-4)})</span>
-                         </button>
-                     ) : (
-                         <button 
-                            onClick={() => setIsShiftModalOpen(true)}
-                            className="w-full md:w-auto bg-rose-900/30 text-rose-400 border border-rose-500/50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-rose-900/50 transition-colors animate-pulse shadow-lg shadow-rose-900/10"
-                         >
-                            <Lock size={18} /> 
-                            <span>KASIR TUTUP - KLIK UNTUK BUKA</span>
-                         </button>
-                     )}
                  </div>
             </div>
 
