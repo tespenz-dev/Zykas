@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, ChevronRight, QrCode } from 'lucide-react';
+import { ShieldCheck, Lock, ChevronRight, QrCode, Smartphone } from 'lucide-react';
 import { GOOGLE_AUTH_SECRET } from '../constants';
 import * as OTPAuth from 'otpauth';
 
@@ -87,23 +87,34 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
         </form>
 
         <div className="mt-8 pt-6 border-t border-slate-800 text-center">
+            {/* TOMBOL SETUP YANG LEBIH MENCUAL DAN BESAR */}
             <button 
                 onClick={() => setShowSetup(!showSetup)}
-                className="text-xs text-slate-500 hover:text-slate-300 flex items-center justify-center gap-2 mx-auto"
+                className={`w-full py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all ${
+                    showSetup 
+                    ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' 
+                    : 'bg-slate-800 hover:bg-emerald-900/30 text-emerald-400 border border-emerald-500/30'
+                }`}
             >
-                <QrCode size={14} /> 
-                {showSetup ? 'Sembunyikan Setup' : 'Setup Authenticator Baru'}
+                <QrCode size={18} /> 
+                {showSetup ? 'Sembunyikan' : 'Setup Authenticator Baru'}
             </button>
 
             {showSetup && (
-                <div className="mt-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-left animate-fade-in">
-                    <p className="text-xs text-slate-400 mb-2 font-bold uppercase">Cara Setup:</p>
-                    <ol className="text-xs text-slate-500 space-y-2 list-decimal pl-4">
-                        <li>Buka Google Authenticator di HP.</li>
-                        <li>Pilih tanda <strong>(+)</strong> dan pilih <strong>"Enter a setup key"</strong>.</li>
-                        <li>Account name: <strong>CueBrewPOS</strong></li>
-                        <li>Your key: <span className="text-emerald-400 font-mono font-bold select-all">{GOOGLE_AUTH_SECRET}</span></li>
-                        <li>Pilih "Time based" lalu Add.</li>
+                <div className="mt-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-left animate-fade-in ring-2 ring-emerald-500/20">
+                    <div className="flex items-center gap-2 mb-3 text-emerald-400 font-bold border-b border-slate-800 pb-2">
+                        <Smartphone size={16} /> Panduan Aktivasi
+                    </div>
+                    <ol className="text-xs text-slate-400 space-y-3 list-decimal pl-4">
+                        <li>Install <strong>Google Authenticator</strong> di HP Anda.</li>
+                        <li>Buka App -> Tekan <strong>(+)</strong> -> <strong>Enter a setup key</strong>.</li>
+                        <li>Account name: <span className="text-white font-bold">Zykas POS</span></li>
+                        <li>Your key: 
+                            <div className="mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-emerald-400 font-mono font-bold text-center select-all tracking-widest break-all">
+                                {GOOGLE_AUTH_SECRET}
+                            </div>
+                        </li>
+                        <li>Pilih <strong>Add</strong>. Masukkan kode yang muncul di HP ke kolom di atas.</li>
                     </ol>
                 </div>
             )}

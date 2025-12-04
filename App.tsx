@@ -1,6 +1,5 @@
 
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
@@ -8,6 +7,7 @@ import { MenuView } from './components/MenuView';
 import { AdminView } from './components/AdminView';
 import { HistoryView } from './components/HistoryView';
 import { StockView } from './components/StockView';
+import { SecurityGate } from './components/SecurityGate';
 
 const MainLayout: React.FC = () => {
   const { state } = useApp();
@@ -56,6 +56,24 @@ const MainLayout: React.FC = () => {
 };
 
 export default function App() {
+  const [isStoreUnlocked, setIsStoreUnlocked] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // Cek apakah sesi sudah terbuka sebelumnya
+    const unlocked = sessionStorage.getItem('STORE_UNLOCKED');
+    if (unlocked === 'true') {
+      setIsStoreUnlocked(true);
+    }
+    setChecking(false);
+  }, []);
+
+  if (checking) return null; // Prevent flash
+
+  if (!isStoreUnlocked) {
+    return <SecurityGate onUnlock={() => setIsStoreUnlocked(true)} />;
+  }
+
   return (
     <AppProvider>
       <MainLayout />
