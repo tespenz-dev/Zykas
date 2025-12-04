@@ -107,7 +107,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
                     </div>
                     <ol className="text-xs text-slate-400 space-y-3 list-decimal pl-4">
                         <li>Install <strong>Google Authenticator</strong> di HP Anda.</li>
-                        <li>Buka App -> Tekan <strong>(+)</strong> -> <strong>Enter a setup key</strong>.</li>
+                        <li>Buka App &rarr; Tekan <strong>(+)</strong> &rarr; <strong>Enter a setup key</strong>.</li>
                         <li>Account name: <span className="text-white font-bold">Zykas POS</span></li>
                         <li>Your key: 
                             <div className="mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-emerald-400 font-mono font-bold text-center select-all tracking-widest break-all">
