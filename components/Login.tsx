@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Delete, User as UserIcon, LogIn, Shield, Store } from 'lucide-react';
@@ -75,7 +74,7 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="z-10 text-xs text-slate-600">
-             © 2024 Cue & Brew POS. Version 1.2.0 (FINAL FIX)
+             © 2024 Cue & Brew POS. Version 2.0.0 (Stable)
           </div>
         </div>
 
