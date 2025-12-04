@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Cue & Brew POS</title>
-    <!-- Tailwind CSS via CDN -->
+    <!-- Tailwind CSS via CDN is okay for simple usage, but ideally should be installed via npm. Leaving as is for now to minimize changes. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       /* Custom scrollbar */
@@ -34,6 +34,7 @@
         width: 100%;
       }
     </style>
+    <!-- PENTING: JANGAN TAMBAHKAN IMPORTMAP DI SINI -->
   <script type="importmap">
 {
   "imports": {
@@ -50,7 +51,6 @@
 </head>
   <body class="bg-slate-900 text-slate-100 font-sans antialiased">
     <div id="root"></div>
-    <!-- Entry point utama Vite -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
