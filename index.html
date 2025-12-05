@@ -3,7 +3,7 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Cue & Brew POS v2.1</title>
     <!-- Tailwind CSS via CDN is okay for simple usage -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,13 +20,20 @@
         background: #475569;
         border-radius: 3px;
       }
+      
+      /* Global Smooth Scrolling for iOS */
+      * {
+        -webkit-overflow-scrolling: touch;
+      }
+
       body {
         -webkit-touch-callout: none;
         -webkit-user-select: none;
         user-select: none;
         background-color: #0f172a;
         margin: 0;
-        height: 100vh;
+        height: 100vh; /* Fallback */
+        height: 100dvh;
         width: 100vw;
         overflow: hidden;
       }
@@ -34,18 +41,26 @@
         height: 100%;
         width: 100%;
       }
+      
+      /* Utility to hide scrollbar but keep functionality */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+      }
     </style>
-    <!-- PENTING: IMPORTMAP SUDAH DIHAPUS AGAR VERCEL BEKERJA NORMAL -->
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "otpauth": "https://aistudiocdn.com/otpauth@^9.4.1"
   }
 }

@@ -2,7 +2,6 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-// Add Store to the lucide-react import
 import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X, RefreshCcw, Filter, Printer, MapPin, Phone, Store } from 'lucide-react';
 import { Role, ProductCategory, AppState, User as UserType } from '../types';
 
@@ -249,7 +248,7 @@ export const AdminView: React.FC = () => {
   const renderDashboard = () => {
     return (
       <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
             <div className="flex items-center gap-4 mb-2">
               <div className="p-3 bg-emerald-500/20 rounded-lg text-emerald-400"><DollarSign size={24} /></div>
@@ -273,7 +272,7 @@ export const AdminView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700 h-80 md:h-96">
+        <div className="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700 h-64 md:h-96">
           <h3 className="text-lg md:text-xl font-bold text-white mb-6">Grafik Transaksi Terakhir</h3>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>

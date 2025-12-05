@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory, Transaction } from '../types';
-import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX } from 'lucide-react';
+import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX, ChevronRight } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 import { ReceiptData } from '../utils/printer';
 
@@ -42,9 +42,9 @@ const TableCard: React.FC<{
 
   return (
     <div 
-      className={`relative p-3 md:p-4 rounded-2xl border-2 transition-all transform hover:scale-[1.01] shadow-lg flex flex-col justify-between min-h-[140px] ${
+      className={`relative p-3 md:p-4 rounded-2xl border-2 transition-all transform active:scale-95 shadow-lg flex flex-col justify-between min-h-[140px] md:min-h-[160px] ${
         table.status === TableStatus.AVAILABLE 
-          ? 'border-emerald-500/50 bg-slate-800 hover:bg-slate-700 cursor-pointer active:scale-95' 
+          ? 'border-emerald-500/50 bg-slate-800 hover:bg-slate-700 cursor-pointer' 
           : 'border-rose-500/50 bg-slate-800'
       }`}
       onClick={(e) => {
@@ -53,8 +53,8 @@ const TableCard: React.FC<{
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-2 relative z-10">
-        <h3 className="text-lg md:text-xl font-bold text-white leading-none">{table.name}</h3>
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+        <h3 className="text-lg md:text-xl font-bold text-white leading-none truncate pr-2">{table.name}</h3>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
           table.status === TableStatus.AVAILABLE ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
         }`}>
           {table.status === TableStatus.AVAILABLE ? 'KOSONG' : 'DIPAKAI'}
@@ -89,24 +89,24 @@ const TableCard: React.FC<{
           <div className="mt-3 grid grid-cols-3 gap-2 relative z-20">
               <button 
                   onClick={(e) => { e.stopPropagation(); onStop(table); }}
-                  className="bg-rose-600 hover:bg-rose-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  className="bg-rose-600 hover:bg-rose-500 text-white rounded-lg py-2 md:py-1.5 flex items-center justify-center transition-colors"
                   title="Stop / Selesai"
               >
-                  <Square size={16} fill="currentColor" />
+                  <Square size={18} fill="currentColor" />
               </button>
               <button 
                   onClick={(e) => { e.stopPropagation(); onTopUp(table); }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 md:py-1.5 flex items-center justify-center transition-colors"
                   title="Tambah Waktu"
               >
-                  <PlusCircle size={18} />
+                  <PlusCircle size={20} />
               </button>
               <button 
                   onClick={(e) => { e.stopPropagation(); onMove(table); }}
-                  className="bg-amber-600 hover:bg-amber-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
+                  className="bg-amber-600 hover:bg-amber-500 text-white rounded-lg py-2 md:py-1.5 flex items-center justify-center transition-colors"
                   title="Pindah Meja"
               >
-                  <ArrowRightLeft size={18} />
+                  <ArrowRightLeft size={20} />
               </button>
           </div>
       )}
@@ -122,24 +122,24 @@ const TableCard: React.FC<{
 const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }> = ({ product, onClick }) => (
   <button 
     onClick={() => onClick(product)}
-    className={`p-3 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-left transition-all active:scale-95 flex flex-col justify-between h-32 relative overflow-hidden group ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+    className={`p-3 md:p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-left transition-all active:scale-95 flex flex-col justify-between h-36 md:h-40 relative overflow-hidden group w-full ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
     disabled={product.stock === 0}
   >
-    <div className="z-10">
-      <h3 className="font-bold text-white text-sm line-clamp-2 leading-tight mb-1">{product.name}</h3>
-      <div className="text-emerald-400 font-bold text-sm">Rp {product.price.toLocaleString()}</div>
+    <div className="z-10 w-full">
+      <h3 className="font-bold text-white text-sm md:text-base line-clamp-2 leading-tight mb-2 pr-4">{product.name}</h3>
+      <div className="text-emerald-400 font-bold text-sm md:text-base">Rp {product.price.toLocaleString()}</div>
     </div>
     <div className="z-10 mt-auto flex justify-between items-end w-full">
-         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${product.stock <= 5 ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-600/50 text-slate-400'}`}>
+         <span className={`text-[10px] px-2 py-1 rounded font-bold ${product.stock <= 5 ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-600/50 text-slate-400'}`}>
             Stok: {product.stock}
          </span>
-         <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg transform translate-y-10 group-hover:translate-y-0 transition-transform">
-            <Plus size={16} />
+         <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg transform translate-y-1 md:translate-y-10 group-hover:translate-y-0 transition-transform">
+            <Plus size={20} />
          </div>
     </div>
     {/* Icon Watermark */}
     <div className="absolute -bottom-2 -right-2 text-slate-700/30">
-        <Coffee size={64} />
+        <Coffee size={72} />
     </div>
   </button>
 );
@@ -222,6 +222,7 @@ export const MenuView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [activeTableId, setActiveTableId] = useState<number | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false); // New state for cart drawer
   
   // Shift Modals
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
@@ -239,6 +240,7 @@ export const MenuView: React.FC = () => {
 
 
   const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartCount = state.cart.reduce((a, b) => a + b.quantity, 0);
   const isShiftActive = !!state.activeShift;
 
   // --- Handlers ---
@@ -291,18 +293,17 @@ export const MenuView: React.FC = () => {
 
   const handleAddToCart = (product: Product) => {
       dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product });
+      // Optional: Auto open cart on first add?
+      // setIsCartOpen(true);
   };
 
   const handleCheckoutInitiate = async () => {
-    console.log('handleCheckoutInitiate dipanggil.');
     if (!isShiftActive) {
         setIsShiftModalOpen(true);
-        console.log('Shift tidak aktif, membuka modal Buka Kasir.');
         return;
     }
     if (state.cart.length === 0) {
         setPaymentStatusModal({ type: 'error', title: 'Keranjang Kosong', message: 'Mohon tambahkan item ke keranjang belanja.' });
-        console.log('Keranjang kosong, tidak bisa checkout.');
         return;
     }
     
@@ -310,17 +311,14 @@ export const MenuView: React.FC = () => {
     const hasBilliard = state.cart.some(i => i.itemType === 'BILLIARD');
     if (hasBilliard && !customerName.trim()) {
        setPaymentStatusModal({ type: 'error', title: 'Nama Pelanggan Wajib', message: 'Nama Pelanggan wajib diisi untuk sewa meja.' });
-       console.log('Nama pelanggan kosong untuk item billiard.');
        return;
     }
 
-    console.log('Semua kondisi awal terpenuhi. Menampilkan modal konfirmasi pembayaran.');
     setShowPaymentConfirmModal(true);
   };
 
   const handleConfirmPayment = async () => {
     setShowPaymentConfirmModal(false); // Tutup modal konfirmasi
-    console.log('Konfirmasi pembayaran diterima. Memproses transaksi...');
       const newTransactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const newTransactionDate = new Date().toISOString();
       const newTransactionTimestamp = Date.now();
@@ -347,7 +345,7 @@ export const MenuView: React.FC = () => {
         } 
       });
       setCustomerName(''); // Reset customer name after successful checkout
-      console.log('Dispatch CHECKOUT berhasil. Mencoba mencetak struk...');
+      setIsCartOpen(false); // Close cart drawer
 
       // Setelah dispatch, panggil fungsi printReceipt
       try {
@@ -362,11 +360,9 @@ export const MenuView: React.FC = () => {
               cashierName: state.user?.name || 'Unknown',
           });
           setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
-          console.log('Struk berhasil dicetak.');
       } catch (error) {
           console.error("Gagal mencetak struk:", error);
           setPaymentStatusModal({ type: 'error', title: 'Gagal Mencetak Struk', message: "Transaksi berhasil, namun gagal mencetak struk: " + (error as Error).message });
-          console.log('Gagal mencetak struk, namun transaksi berhasil.');
       }
   };
 
@@ -382,20 +378,20 @@ export const MenuView: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-full overflow-hidden relative">
+    <div className="flex flex-col h-full overflow-hidden relative">
       
-      {/* --- Left Side: Menu Grid --- */}
+      {/* --- Main Content: Menu Grid (Full Width) --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
         {/* Header & Tabs */}
-        <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20 space-y-4">
+        <div className="p-3 md:p-6 shrink-0 bg-slate-950 z-20 space-y-3 md:space-y-4">
             
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
                  {/* Tabs (Left) Combined with Cashier Status */}
-                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full items-center">
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full items-center touch-pan-x">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
-                        className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
+                        className={`shrink-0 px-4 md:px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                             activeTab === 'BILLIARD' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                         }`}
                     >
@@ -405,7 +401,7 @@ export const MenuView: React.FC = () => {
                         <button 
                             key={cat}
                             onClick={() => setActiveTab(cat)}
-                            className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
+                            className={`shrink-0 px-4 md:px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                                 activeTab === cat ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                             }`}
                         >
@@ -415,7 +411,7 @@ export const MenuView: React.FC = () => {
 
                     <div className="w-px h-6 bg-slate-800 mx-2 shrink-0"></div>
 
-                     {/* KASIR STATUS BUTTON (Moved Here) */}
+                     {/* KASIR STATUS BUTTON */}
                      {isShiftActive ? (
                          <button 
                             onClick={() => setIsCloseShiftModalOpen(true)}
@@ -437,7 +433,7 @@ export const MenuView: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative max-w-2xl">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                 <input 
                     type="text" 
@@ -450,9 +446,10 @@ export const MenuView: React.FC = () => {
         </div>
 
         {/* Grid Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 pt-0 pb-32 md:pb-6 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-0 pb-20 scrollbar-hide touch-pan-y">
             {activeTab === 'BILLIARD' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                // Responsive Grid: 1 col (mobile), 2 (tablet), 3 (small desktop), 4 (large desktop)
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 pb-24">
                     {filteredTables.map(table => (
                         <TableCard 
                             key={table.id} 
@@ -465,7 +462,8 @@ export const MenuView: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                // Responsive Grid: 2 cols (mobile), 3 (tablet), 4 (small desktop), 5/6 (large desktop)
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-24">
                     {filteredProducts.map(product => (
                         <ProductCard key={product.id} product={product} onClick={handleAddToCart} />
                     ))}
@@ -474,95 +472,130 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Right Side: Cart Sidebar --- */}
-      <div className="w-full md:w-96 bg-slate-900 border-l border-slate-800 flex flex-col h-[40vh] md:h-full fixed bottom-0 md:relative z-40 shadow-2xl md:shadow-none rounded-t-3xl md:rounded-none">
-         
-         {/* Cart Header */}
-         <div className="p-4 border-b border-slate-800 bg-slate-900 rounded-t-3xl md:rounded-none flex flex-col gap-3">
-             {/* Operator Info Block - PROMINENT DISPLAY */}
-             <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                 <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
-                         <User size={20} />
-                     </div>
-                     <div>
-                         <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator Bertugas</div>
-                         <div className="text-white font-bold text-sm">{state.user?.name}</div>
-                     </div>
-                 </div>
-                 {/* Status indicator */}
-                 <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
-             </div>
+      {/* --- FLOATING CART BUTTON (Right Middle) --- */}
+      <button
+        onClick={() => setIsCartOpen(true)}
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
+      >
+        <div className="relative">
+            <ShoppingCart size={28} className="group-hover:stroke-2" />
+            {cartCount > 0 && (
+                <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
+                    {cartCount}
+                </span>
+            )}
+        </div>
+      </button>
 
-             <div className="flex items-center gap-2 text-emerald-400 mt-2">
-                 <ShoppingCart size={20} />
-                 <h2 className="font-bold text-lg">Keranjang ({state.cart.reduce((a, b) => a + b.quantity, 0)})</h2>
-             </div>
-             
-             <input 
-                 type="text" 
-                 placeholder="Nama Pelanggan (Wajib untuk Meja)"
-                 value={customerName}
-                 onChange={(e) => setCustomerName(e.target.value)}
-                 className="w-full bg-slate-950 border border-slate-700 rounded-xl py-2 px-4 text-sm text-white focus:border-emerald-500 outline-none"
-             />
-         </div>
+      {/* --- SLIDE-OVER CART DRAWER --- */}
+      {isCartOpen && (
+        <>
+            {/* Backdrop */}
+            <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity"
+                onClick={() => setIsCartOpen(false)}
+            />
+            
+            {/* Drawer Panel */}
+            <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out animate-slide-in-right">
+                
+                {/* Drawer Header */}
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                        <ShoppingCart size={24} />
+                        <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
+                    </div>
+                    <button 
+                        onClick={() => setIsCartOpen(false)}
+                        className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <ChevronRight size={24} />
+                    </button>
+                </div>
 
-         {/* Cart Items */}
-         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-             {state.cart.length === 0 ? (
-                 <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
-                     <Coffee size={48} className="opacity-20" />
-                     <p className="text-sm">Keranjang kosong</p>
-                 </div>
-             ) : (
-                 state.cart.map((item, idx) => (
-                     <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group">
-                         <div>
-                             <div className="text-white font-medium text-sm">{item.name}</div>
-                             <div className="text-xs text-slate-500">
-                                 {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
-                             </div>
-                         </div>
-                         <div className="flex items-center gap-3">
-                             <div className="text-emerald-400 font-bold text-sm">
-                                 Rp {(item.price * item.quantity).toLocaleString()}
-                             </div>
-                             <button 
-                                 onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
-                                 className="text-slate-600 hover:text-rose-500 transition-colors p-1"
-                             >
-                                 <X size={16} />
-                             </button>
-                         </div>
-                     </div>
-                 ))
-             )}
-         </div>
+                {/* Operator Info */}
+                <div className="px-4 pt-4">
+                    <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
+                                <User size={20} />
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
+                                <div className="text-white font-bold text-sm">{state.user?.name}</div>
+                            </div>
+                        </div>
+                        <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
+                    </div>
+                    
+                    <div className="mt-4">
+                        <input 
+                            type="text" 
+                            placeholder="Nama Pelanggan (Wajib untuk Meja)"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-4 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                        />
+                    </div>
+                </div>
 
-         {/* Cart Footer */}
-         <div className="p-4 bg-slate-800 border-t border-slate-700">
-             <div className="flex justify-between items-center mb-4">
-                 <span className="text-slate-400 font-medium">Total Tagihan</span>
-                 <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
-             </div>
-             
-             <button 
-                 onClick={handleCheckoutInitiate} // Panggil fungsi initiate
-                 disabled={!isShiftActive || state.cart.length === 0}
-                 className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
-                    !isShiftActive 
-                     ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                     : state.cart.length === 0 
-                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
-                 }`}
-             >
-                 {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
-                 {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
-             </button>
-         </div>
-      </div>
+                {/* Cart Items List */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {state.cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
+                            <Coffee size={48} className="opacity-20" />
+                            <p className="text-sm">Keranjang kosong</p>
+                        </div>
+                    ) : (
+                        state.cart.map((item, idx) => (
+                            <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all">
+                                <div>
+                                    <div className="text-white font-medium text-sm line-clamp-1">{item.name}</div>
+                                    <div className="text-xs text-slate-500">
+                                        {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-emerald-400 font-bold text-sm">
+                                        Rp {(item.price * item.quantity).toLocaleString()}
+                                    </div>
+                                    <button 
+                                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
+                                        className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 text-slate-500 flex items-center justify-center transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
+                    <div className="flex justify-between items-center mb-4">
+                        <span className="text-slate-400 font-medium">Total Tagihan</span>
+                        <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
+                    </div>
+                    
+                    <button 
+                        onClick={handleCheckoutInitiate} 
+                        disabled={!isShiftActive || state.cart.length === 0}
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
+                            !isShiftActive 
+                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                            : state.cart.length === 0 
+                                ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
+                        }`}
+                    >
+                        {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
+                        {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
+                    </button>
+                </div>
+            </div>
+        </>
+      )}
 
       {/* --- MODALS --- */}
 
@@ -579,7 +612,7 @@ export const MenuView: React.FC = () => {
                           <label className="block text-sm text-slate-400 mb-1">Durasi (Menit)</label>
                           <div className="grid grid-cols-3 gap-2 mb-2">
                               {[60, 120, 180].map(m => (
-                                  <button key={m} onClick={() => setDuration(m)} className={`py-2 rounded-lg text-sm font-bold ${duration === m ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                                  <button key={m} onClick={() => setDuration(m)} className={`py-3 rounded-lg text-sm font-bold ${duration === m ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
                                       {m / 60} Jam
                                   </button>
                               ))}

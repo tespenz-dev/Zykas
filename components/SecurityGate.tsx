@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, ChevronRight, QrCode, Smartphone } from 'lucide-react';
 import { GOOGLE_AUTH_SECRET } from '../constants';
@@ -29,7 +30,8 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
     const delta = totp.validate({ token: code, window: 1 });
 
     if (delta !== null) {
-      sessionStorage.setItem('STORE_UNLOCKED', 'true');
+      // Ubah sessionStorage ke localStorage untuk persistensi
+      localStorage.setItem('STORE_UNLOCKED', 'true');
       onUnlock();
     } else {
       setError(true);
@@ -56,6 +58,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
         <h1 className="text-2xl font-bold text-white text-center mb-2">Keamanan Toko</h1>
         <p className="text-slate-400 text-center mb-8 text-sm">
           Masukkan kode 6-digit dari aplikasi Google Authenticator Anda.
+          <br/><span className="text-xs text-slate-500">(Perangkat ini akan diingat)</span>
         </p>
 
         <form onSubmit={handleUnlock} className="space-y-6">
