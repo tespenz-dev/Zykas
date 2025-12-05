@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
           
           <div className="z-10">
             <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">Cue & Brew</h1>
-            <p className="text-slate-400">Professional POS System</p>
+            <p className="text-slate-400">Sistem Kasir Profesional</p>
           </div>
 
           <div className="z-10 space-y-4 text-slate-400 text-sm">
@@ -69,12 +69,12 @@ export const Login: React.FC = () => {
             </div>
             <div className="flex items-center gap-3">
                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500"><Store size={16}/></div>
-               <span>Optimized for iPad Pro</span>
+               <span>Dioptimalkan untuk iPad Pro / Tablet</span>
             </div>
           </div>
 
           <div className="z-10 text-xs text-slate-600">
-             © 2024 Cue & Brew POS. Version 2.0.0 (Stable)
+             © 2024 Cue & Brew POS. Versi 2.1 (Stabil)
           </div>
         </div>
 
@@ -86,7 +86,7 @@ export const Login: React.FC = () => {
 
             <div className="mb-6 text-center">
               <h2 className="text-xl md:text-2xl font-bold text-white">Pilih Akun</h2>
-              <p className="text-slate-500 text-sm mt-1">Siapa yang akan login hari ini?</p>
+              <p className="text-slate-500 text-sm mt-1">Siapa yang bertugas hari ini?</p>
             </div>
 
             <form onSubmit={handleLogin} className="flex-1 flex flex-col items-center w-full">
@@ -123,7 +123,7 @@ export const Login: React.FC = () => {
                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">PIN Akses</label>
                      {selectedUser && (
                          <span className="text-xs text-emerald-400 font-medium animate-pulse">
-                            Login: {selectedUser.username}
+                            User: {selectedUser.username}
                          </span>
                      )}
                 </div>

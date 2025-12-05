@@ -1,5 +1,7 @@
 {
-  "name": "Cue & Brew POS v2",
+  "name": "ZYRA KASIR",
   "description": "Sistem Point of Sales modern untuk usaha Billiard dan Cafe dengan manajemen meja, inventaris, dan laporan.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "bluetooth"
+  ]
 }

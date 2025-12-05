@@ -38,11 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
   };
 
   const getStatusText = () => {
-      if (!state.settings?.googleScriptUrl) return "Cloud Off";
+      if (!state.settings?.googleScriptUrl) return "Cloud Mati";
       if (syncStatus === 'SYNCING' || syncStatus === 'PENDING') return "Menyimpan...";
       if (syncStatus === 'SUCCESS') return "Tersimpan";
       if (syncStatus === 'ERROR') return "Gagal Sync";
-      return "Cloud Ready";
+      return "Cloud Siap";
   };
 
   const isShiftActive = !!state.activeShift;
@@ -64,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
               <Lock size={20} className="text-rose-400 animate-pulse" />
           )}
           <span className={`text-[9px] mt-1 font-bold font-mono text-center leading-tight ${isShiftActive ? 'text-emerald-400' : 'text-rose-400'}`}>
-             {isShiftActive ? 'OPEN' : 'CLOSE'}
+             {isShiftActive ? 'BUKA' : 'TUTUP'}
           </span>
       </div>
 
@@ -89,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
       <div className="hidden md:flex flex-col items-center justify-center mb-6 p-2 rounded-xl bg-slate-800/50 border border-slate-700/50 w-16 mx-auto" title={getStatusText()}>
           {renderCloudStatus()}
           <span className="text-[9px] text-slate-500 mt-1 font-mono text-center leading-tight">
-             {state.settings?.googleScriptUrl ? 'AUTO' : 'OFF'}
+             {state.settings?.googleScriptUrl ? 'AUTO' : 'MATI'}
           </span>
       </div>
 
@@ -97,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
       <button 
         onClick={() => dispatch({ type: 'LOGOUT' })}
         className="md:mt-auto text-rose-500 hover:bg-rose-500/10 p-2 md:p-4 rounded-2xl transition-colors flex flex-col items-center"
-        title="Logout"
+        title="Keluar / Logout"
       >
         <LogOut size={24} />
       </button>

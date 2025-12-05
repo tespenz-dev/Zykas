@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { BilliardTable, Product, TableStatus, ProductCategory } from '../types';
-import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor } from 'lucide-react';
+import { BilliardTable, Product, TableStatus, ProductCategory, Transaction } from '../types';
+import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
+import { ReceiptData } from '../utils/printer';
 
 // --- Subcomponents ---
 
@@ -56,7 +57,7 @@ const TableCard: React.FC<{
         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
           table.status === TableStatus.AVAILABLE ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
         }`}>
-          {table.status === TableStatus.AVAILABLE ? 'Ready' : 'In Use'}
+          {table.status === TableStatus.AVAILABLE ? 'KOSONG' : 'DIPAKAI'}
         </span>
       </div>
 
@@ -71,7 +72,7 @@ const TableCard: React.FC<{
           </div>
           <div className="flex justify-between text-[10px] text-slate-400 uppercase font-bold tracking-wider">
              <span>Sisa Waktu</span>
-             {isOvertime && <span className="text-rose-500">Overtime</span>}
+             {isOvertime && <span className="text-rose-500">Lewat Waktu</span>}
           </div>
         </div>
       ) : (
@@ -89,7 +90,7 @@ const TableCard: React.FC<{
               <button 
                   onClick={(e) => { e.stopPropagation(); onStop(table); }}
                   className="bg-rose-600 hover:bg-rose-500 text-white rounded-lg py-1.5 flex items-center justify-center transition-colors"
-                  title="Stop"
+                  title="Stop / Selesai"
               >
                   <Square size={16} fill="currentColor" />
               </button>
@@ -143,24 +144,99 @@ const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }>
   </button>
 );
 
+// --- Custom Payment Confirmation Modal ---
+interface PaymentConfirmationModalProps {
+    total: number;
+    customerName: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+}
+
+const PaymentConfirmationModal: React.FC<PaymentConfirmationModalProps> = ({ total, customerName, onConfirm, onCancel }) => (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[120] p-4 animate-fade-in">
+        <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Wallet size={32} />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Konfirmasi Pembayaran</h2>
+            <p className="text-slate-400 text-sm mb-6">Pastikan jumlah total sudah benar.</p>
+            
+            <div className="bg-slate-800 p-4 rounded-xl mb-6 border border-slate-700">
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-slate-400 text-sm">Total Tagihan</span>
+                    <span className="text-2xl font-bold text-emerald-400">Rp {total.toLocaleString()}</span>
+                </div>
+                {customerName && <p className="text-left text-xs text-slate-500">Pelanggan: {customerName}</p>}
+            </div>
+
+            <div className="flex gap-3">
+                <button 
+                    onClick={onCancel} 
+                    className="flex-1 py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700 transition-colors"
+                >
+                    Batal
+                </button>
+                <button 
+                    onClick={onConfirm} 
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/30 transition-colors"
+                >
+                    Konfirmasi Bayar
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+// --- Custom Status Message Modal (Success/Error) ---
+interface StatusMessageModalProps {
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    onClose: () => void;
+}
+
+const StatusMessageModal: React.FC<StatusMessageModalProps> = ({ type, title, message, onClose }) => (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[120] p-4 animate-fade-in">
+        <div className={`bg-slate-900 border-2 ${type === 'success' ? 'border-emerald-700' : 'border-rose-700'} w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center`}>
+            <div className={`w-16 h-16 ${type === 'success' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-rose-500/20 text-rose-500'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                {type === 'success' ? <CircleCheck size={32} /> : <CircleX size={32} />}
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
+            <p className="text-slate-400 text-sm mb-6">{message}</p>
+            
+            <button 
+                onClick={onClose} 
+                className={`w-full py-3 ${type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/30' : 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/30'} text-white rounded-xl font-bold shadow-lg transition-colors`}
+            >
+                OK
+            </button>
+        </div>
+    </div>
+);
+
 // --- Main Component ---
 
 export const MenuView: React.FC = () => {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, printReceipt } = useApp();
   const [activeTab, setActiveTab] = useState<string>('BILLIARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [activeTableId, setActiveTableId] = useState<number | null>(null);
   
   // Shift Modals
-  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false); // Untuk Buka Kasir
-  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false); // Untuk Tutup Kasir
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [startCashInput, setStartCashInput] = useState('');
 
   // Table Action Modals (Topup & Move only now)
   const [showTableModal, setShowTableModal] = useState<'TOPUP' | 'MOVE' | null>(null);
-  const [duration, setDuration] = useState(60); // Default 60 mins
+  const [duration, setDuration] = useState(60);
   const [targetTableId, setTargetTableId] = useState<number | null>(null);
+
+  // Custom Payment Modals State
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+  const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
+
 
   const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const isShiftActive = !!state.activeShift;
@@ -217,21 +293,51 @@ export const MenuView: React.FC = () => {
       dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product });
   };
 
-  const handleCheckout = () => {
+  const handleCheckoutInitiate = async () => {
+    console.log('handleCheckoutInitiate dipanggil.');
     if (!isShiftActive) {
         setIsShiftModalOpen(true);
+        console.log('Shift tidak aktif, membuka modal Buka Kasir.');
         return;
     }
-    if (state.cart.length === 0) return;
+    if (state.cart.length === 0) {
+        setPaymentStatusModal({ type: 'error', title: 'Keranjang Kosong', message: 'Mohon tambahkan item ke keranjang belanja.' });
+        console.log('Keranjang kosong, tidak bisa checkout.');
+        return;
+    }
     
     // Check if customer name is needed (if billiard item exists)
     const hasBilliard = state.cart.some(i => i.itemType === 'BILLIARD');
     if (hasBilliard && !customerName.trim()) {
-       alert("Nama Pelanggan wajib diisi untuk sewa meja!");
+       setPaymentStatusModal({ type: 'error', title: 'Nama Pelanggan Wajib', message: 'Nama Pelanggan wajib diisi untuk sewa meja.' });
+       console.log('Nama pelanggan kosong untuk item billiard.');
        return;
     }
 
-    if (confirm(`Total Rp ${cartTotal.toLocaleString()}. Proses bayar?`)) {
+    console.log('Semua kondisi awal terpenuhi. Menampilkan modal konfirmasi pembayaran.');
+    setShowPaymentConfirmModal(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    setShowPaymentConfirmModal(false); // Tutup modal konfirmasi
+    console.log('Konfirmasi pembayaran diterima. Memproses transaksi...');
+      const newTransactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const newTransactionDate = new Date().toISOString();
+      const newTransactionTimestamp = Date.now();
+
+      // Buat objek transaksi yang akan dicetak
+      const transactionToPrint: Transaction = {
+          id: newTransactionId,
+          date: newTransactionDate,
+          timestamp: newTransactionTimestamp,
+          total: cartTotal,
+          type: 'MIXED', // Asumsi selalu mixed kalau dari cart
+          details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
+          cashierName: state.user?.name || 'Unknown',
+          customerName: customerName || 'Pelanggan Umum'
+      };
+
+      // Dispatch action CHECKOUT ke reducer
       dispatch({ 
         type: 'CHECKOUT', 
         payload: { 
@@ -240,8 +346,28 @@ export const MenuView: React.FC = () => {
           customerName: customerName
         } 
       });
-      setCustomerName('');
-    }
+      setCustomerName(''); // Reset customer name after successful checkout
+      console.log('Dispatch CHECKOUT berhasil. Mencoba mencetak struk...');
+
+      // Setelah dispatch, panggil fungsi printReceipt
+      try {
+          // UPDATE: Include storeAddress, storePhone, and customReceiptFooter from global state
+          await printReceipt({
+              transaction: transactionToPrint,
+              cart: state.cart, // Gunakan cart yang saat ini ada
+              storeName: state.settings?.storeName || 'Cue & Brew',
+              storeAddress: state.settings?.storeAddress,
+              storePhone: state.settings?.storePhone,
+              customReceiptFooter: state.settings?.customReceiptFooter,
+              cashierName: state.user?.name || 'Unknown',
+          });
+          setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
+          console.log('Struk berhasil dicetak.');
+      } catch (error) {
+          console.error("Gagal mencetak struk:", error);
+          setPaymentStatusModal({ type: 'error', title: 'Gagal Mencetak Struk', message: "Transaksi berhasil, namun gagal mencetak struk: " + (error as Error).message });
+          console.log('Gagal mencetak struk, namun transaksi berhasil.');
+      }
   };
 
   // Filter Logic
@@ -265,11 +391,11 @@ export const MenuView: React.FC = () => {
         <div className="p-4 md:p-6 shrink-0 bg-slate-950 z-20 space-y-4">
             
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
-                 {/* Tabs (Left) */}
-                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full xl:w-auto md:flex-1">
+                 {/* Tabs (Left) Combined with Cashier Status */}
+                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full items-center">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
-                        className={`px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
+                        className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                             activeTab === 'BILLIARD' ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                         }`}
                     >
@@ -279,21 +405,21 @@ export const MenuView: React.FC = () => {
                         <button 
                             key={cat}
                             onClick={() => setActiveTab(cat)}
-                            className={`px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
+                            className={`shrink-0 px-5 py-2.5 rounded-xl font-bold text-xs md:text-sm transition-all whitespace-nowrap shadow-sm ${
                                 activeTab === cat ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'
                             }`}
                         >
                             {cat}
                         </button>
                     ))}
-                 </div>
 
-                 {/* Status Kasir Button (Right, Compact) */}
-                 <div className="shrink-0 w-full xl:w-auto">
+                    <div className="w-px h-6 bg-slate-800 mx-2 shrink-0"></div>
+
+                     {/* KASIR STATUS BUTTON (Moved Here) */}
                      {isShiftActive ? (
                          <button 
                             onClick={() => setIsCloseShiftModalOpen(true)}
-                            className="w-full xl:w-auto bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all text-sm"
+                            className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all text-sm whitespace-nowrap"
                          >
                             <Unlock size={18} className="text-emerald-200" /> 
                             <span>KASIR BUKA</span>
@@ -301,7 +427,7 @@ export const MenuView: React.FC = () => {
                      ) : (
                          <button 
                             onClick={() => setIsShiftModalOpen(true)}
-                            className="w-full xl:w-auto bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse transition-all text-sm"
+                            className="shrink-0 bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse transition-all text-sm whitespace-nowrap"
                          >
                             <Lock size={18} className="text-rose-200" /> 
                             <span>KASIR TUTUP</span>
@@ -370,7 +496,7 @@ export const MenuView: React.FC = () => {
 
              <div className="flex items-center gap-2 text-emerald-400 mt-2">
                  <ShoppingCart size={20} />
-                 <h2 className="font-bold text-lg">Keranjang Pesanan ({state.cart.reduce((a, b) => a + b.quantity, 0)})</h2>
+                 <h2 className="font-bold text-lg">Keranjang ({state.cart.reduce((a, b) => a + b.quantity, 0)})</h2>
              </div>
              
              <input 
@@ -422,7 +548,7 @@ export const MenuView: React.FC = () => {
              </div>
              
              <button 
-                 onClick={handleCheckout}
+                 onClick={handleCheckoutInitiate} // Panggil fungsi initiate
                  disabled={!isShiftActive || state.cart.length === 0}
                  className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
                     !isShiftActive 
@@ -557,6 +683,29 @@ export const MenuView: React.FC = () => {
                   <button onClick={() => setIsCloseShiftModalOpen(false)} className="w-full py-3 bg-slate-800 text-slate-400 rounded-xl font-bold">Kembali</button>
               </div>
           </div>
+      )}
+
+      {/* 4. Custom Payment Confirmation Modal */}
+      {showPaymentConfirmModal && (
+          <PaymentConfirmationModal
+              total={cartTotal}
+              customerName={customerName}
+              onConfirm={handleConfirmPayment}
+              onCancel={() => {
+                  setShowPaymentConfirmModal(false);
+                  console.log('Konfirmasi pembayaran dibatalkan oleh pengguna (melalui modal kustom).');
+              }}
+          />
+      )}
+
+      {/* 5. Custom Payment Status Modal (Success/Error) */}
+      {paymentStatusModal && (
+          <StatusMessageModal
+              type={paymentStatusModal.type}
+              title={paymentStatusModal.title}
+              message={paymentStatusModal.message}
+              onClose={() => setPaymentStatusModal(null)}
+          />
       )}
 
     </div>

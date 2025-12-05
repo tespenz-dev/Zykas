@@ -11,10 +11,19 @@ interface State {
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
+  // Fix: Explicitly declare the 'props' property to help TypeScript's inference
+  // This is often redundant in modern TypeScript setups but can resolve specific issues.
+  public props: Readonly<Props>;
+
   public state: State = {
     hasError: false,
     error: null,
   };
+
+  // Add constructor to explicitly define props and call super, ensuring 'this.props' is correctly resolved by TypeScript.
+  constructor(props: Props) {
+    super(props);
+  }
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };

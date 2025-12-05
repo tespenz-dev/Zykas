@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, ChevronRight, QrCode, Smartphone } from 'lucide-react';
 import { GOOGLE_AUTH_SECRET } from '../constants';
@@ -97,7 +96,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
                 }`}
             >
                 <QrCode size={18} /> 
-                {showSetup ? 'Sembunyikan' : 'Setup Authenticator Baru'}
+                {showSetup ? 'Sembunyikan' : 'Atur Authenticator Baru'}
             </button>
 
             {showSetup && (
@@ -107,10 +106,9 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
                     </div>
                     <ol className="text-xs text-slate-400 space-y-3 list-decimal pl-4">
                         <li>Install <strong>Google Authenticator</strong> di HP Anda.</li>
-                        {/* PERBAIKAN: Menggunakan entitas HTML &rarr; menggantikan karakter -> yang menyebabkan error build */}
-                        <li>Buka App &rarr; Tekan <strong>(+)</strong> &rarr; <strong>Enter a setup key</strong>.</li>
+                        <li>Buka App &rarr; Tekan <strong>(+)</strong> &rarr; <strong>Enter a setup key</strong> (Masukkan kunci penyiapan).</li>
                         <li>Account name: <span className="text-white font-bold">Zykas POS</span></li>
-                        <li>Your key: 
+                        <li>Your key (Kunci Anda): 
                             <div className="mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-emerald-400 font-mono font-bold text-center select-all tracking-widest break-all">
                                 {GOOGLE_AUTH_SECRET}
                             </div>
@@ -123,7 +121,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
       </div>
       
       <div className="absolute bottom-6 text-slate-600 text-xs font-mono">
-         Protected by 2FA Time-Based Token
+         Dilindungi oleh 2FA Time-Based Token
       </div>
     </div>
   );

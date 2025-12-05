@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product, ProductCategory, BilliardTable, TableStatus } from '../types';
@@ -339,7 +337,7 @@ export const StockView: React.FC = () => {
                                         MEJA
                                      </span>
                                      <span className={`text-xs font-mono font-bold ${table.status === TableStatus.AVAILABLE ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {table.status === TableStatus.AVAILABLE ? 'Available' : 'In Use'}
+                                        {table.status === TableStatus.AVAILABLE ? 'Kosong' : 'Dipakai'}
                                      </span>
                                 </div>
                                 <h3 className="text-white font-bold text-lg mb-1">{table.name}</h3>

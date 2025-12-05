@@ -1,5 +1,4 @@
 
-
 export enum Role {
   ADMIN = 'ADMIN',
   CASHIER = 'CASHIER'
@@ -80,6 +79,9 @@ export interface CashierShift {
 export interface AppSettings {
   googleScriptUrl?: string;
   storeName?: string;
+  storeAddress?: string; // New: Address for receipt
+  storePhone?: string;   // New: Phone for receipt
+  customReceiptFooter?: string; // New: Custom message for receipt footer (e.g., WiFi password)
 }
 
 export interface AppState {

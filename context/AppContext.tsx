@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
-import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift } from '../types';
+import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
+import { ThermalPrinter, ReceiptData } from '../utils/printer'; // Import ThermalPrinter
 
 const initialState: AppState = {
   user: null,
@@ -13,18 +14,25 @@ const initialState: AppState = {
   users: MOCK_USERS,
   settings: {
     googleScriptUrl: 'https://script.google.com/macros/s/AKfycby2p4AC1lIZol5B9MEMYJuRNC-zQFMCPaKD7CSj5EApGzzlKlT9Q4hA4uPRe03F5J4dig/exec', 
-    storeName: 'Cue & Brew'
+    storeName: 'Cue & Brew',
+    storeAddress: 'Jl. Contoh No. 123, Kota Fiktif', // Default address
+    storePhone: '0812-3456-7890', // Default phone
+    customReceiptFooter: 'Password WiFi: CUEBREW2024' // Default custom footer
   }
 };
 
 const STORAGE_KEY = 'CUE_BREW_POS_DATA_V3';
 
 export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
+export type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
   syncStatus: SyncStatus;
+  printerStatus: PrinterStatus; // Tambah status printer
+  connectPrinter: () => Promise<void>; // Tambah fungsi connect printer
+  printReceipt: (receiptData: ReceiptData) => Promise<void>; // Tambah fungsi print receipt
 } | undefined>(undefined);
 
 const loadState = (defaultState: AppState): AppState => {
@@ -42,7 +50,10 @@ const loadState = (defaultState: AppState): AppState => {
         const migratedSettings = {
             ...defaultSettings,
             ...(parsed.settings || {}),
-            googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl
+            googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl,
+            storeAddress: parsed.settings?.storeAddress || defaultSettings.storeAddress, // Migrate new setting
+            storePhone: parsed.settings?.storePhone || defaultSettings.storePhone,       // Migrate new setting
+            customReceiptFooter: parsed.settings?.customReceiptFooter || defaultSettings.customReceiptFooter // Migrate new setting
         };
         
         return { 
@@ -385,10 +396,52 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
+const printer = new ThermalPrinter(); // Inisialisasi printer di luar komponen
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState, loadState);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('IDLE');
+  const [printerStatus, setPrinterStatus] = useState<PrinterStatus>('disconnected'); // State untuk printer
   const firstRender = useRef(true);
+
+  // --- Bluetooth Printer Logic ---
+  const connectPrinter = async () => {
+    if (!("bluetooth" in navigator)) {
+      alert("Browser Anda tidak mendukung Web Bluetooth. Mohon gunakan Chrome di Android/Desktop, atau browser Bluefy di iOS.");
+      setPrinterStatus('error');
+      return;
+    }
+
+    setPrinterStatus('connecting');
+    try {
+      await printer.connect();
+      setPrinterStatus('connected');
+      alert("Printer berhasil terhubung!");
+    } catch (error: any) {
+      console.error("Gagal menghubungkan printer:", error);
+      setPrinterStatus('error');
+      alert("Gagal menghubungkan printer: " + (error.message || "Unknown error"));
+    }
+  };
+
+  const printReceipt = async (receiptData: ReceiptData) => {
+    if (!printer.isConnected()) {
+      alert("Printer belum terhubung. Mohon sambungkan printer terlebih dahulu dari menu Admin > Sistem.");
+      setPrinterStatus('disconnected'); // Update status if it somehow got out of sync
+      return;
+    }
+    try {
+      await printer.printReceipt(receiptData);
+    } catch (error: any) {
+      console.error("Gagal mencetak struk:", error);
+      alert("Gagal mencetak struk: " + (error.message || "Unknown error"));
+      // Optionally disconnect on major print error
+      // printer.disconnect();
+      // setPrinterStatus('disconnected');
+    }
+  };
+  // -----------------------------
+
 
   useEffect(() => {
     try {
@@ -423,7 +476,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [state]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, syncStatus }}>
+    <AppContext.Provider value={{ state, dispatch, syncStatus, printerStatus, connectPrinter, printReceipt }}>
       {children}
     </AppContext.Provider>
   );
