@@ -554,8 +554,8 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
       
-      {/* --- PERMANENT CART SIDEBAR --- */}
-      <div className="flex-col w-full md:w-1/3 xl:w-1/4 bg-slate-900 border-l border-slate-800 shrink-0 hidden md:flex">
+      {/* --- PERMANENT CART SIDEBAR (Definitive Fix) --- */}
+      <div className="flex flex-col w-[360px] shrink-0 bg-slate-900 border-l border-slate-800">
           <CartPanel
               customerName={customerName}
               setCustomerName={setCustomerName}
