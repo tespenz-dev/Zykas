@@ -1,9 +1,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Product, BilliardTable, ProductCategory, TableStatus, CartItem } from '../types';
+import { Product, BilliardTable, ProductCategory, TableStatus, CartItem, Transaction } from '../types';
 import { ReceiptData } from '../utils/printer';
 import { Coffee, Beer, IceCream, Plus, Trash2, X, ShoppingCart, DollarSign, Printer, User as UserIcon, Clock, Move, Square, Check, ArrowRight } from 'lucide-react';
+import { BILLIARD_HOURLY_RATE } from '../constants';
 
 // --- KOMPONEN MODAL CHECKOUT ---
 const CheckoutModal: React.FC<{
@@ -92,7 +93,7 @@ const TableManagementModal: React.FC<{
   table: BilliardTable;
   onClose: () => void;
 }> = ({ table, onClose }) => {
-    const { state, dispatch } = useApp();
+    const { state, dispatch, printReceipt } = useApp();
     const [timeLeft, setTimeLeft] = useState('00:00:00');
     const [isMoving, setIsMoving] = useState(false);
 
@@ -122,10 +123,38 @@ const TableManagementModal: React.FC<{
         return () => clearInterval(timerId); // Cleanup on unmount
     }, [table.startTime, table.durationMinutes]);
 
-    const handleTopUp = () => {
-        dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
-        alert(`${table.name} telah ditambahkan ke keranjang untuk top-up 1 jam. Silakan lanjutkan ke pembayaran.`);
-        onClose();
+    const handleTopUp = async () => {
+        if (confirm(`Tambah waktu 1 jam untuk ${table.name} seharga Rp ${table.hourlyRate.toLocaleString()}? Transaksi akan langsung dibuat.`)) {
+            const topUpCost = table.hourlyRate || BILLIARD_HOURLY_RATE;
+            const newTransaction: Transaction = {
+                id: `TX-TOPUP-${Date.now()}`,
+                date: new Date().toISOString(),
+                timestamp: Date.now(),
+                total: topUpCost,
+                type: 'BILLIARD',
+                details: `Top-up 1 Jam - ${table.name}`,
+                cashierName: state.user?.name || 'Unknown',
+                customerName: table.customerName
+            };
+            dispatch({ type: 'PROCESS_TABLE_TOPUP', payload: { table, transaction: newTransaction } });
+            const receiptData: ReceiptData = {
+                transaction: newTransaction,
+                cart: [{
+                    itemId: `topup-${table.id}`,
+                    itemType: 'BILLIARD',
+                    name: `Top-up 1 Jam ${table.name}`,
+                    price: topUpCost,
+                    quantity: 1
+                }],
+                storeName: state.settings.storeName || 'Toko Anda',
+                storeAddress: state.settings.storeAddress,
+                storePhone: state.settings.storePhone,
+                customReceiptFooter: state.settings.customReceiptFooter,
+                cashierName: state.user?.name || 'Unknown',
+            };
+            await printReceipt(receiptData);
+            onClose();
+        }
     };
 
     const handleStop = () => {

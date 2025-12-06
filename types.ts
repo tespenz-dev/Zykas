@@ -123,4 +123,5 @@ export type AppAction =
   | { type: 'REMOVE_USER'; payload: string }
   | { type: 'UPDATE_SETTINGS'; payload: AppSettings }
   | { type: 'IMPORT_DATA'; payload: AppState }
-  | { type: 'RESET_APP' };
+  | { type: 'RESET_APP' }
+  | { type: 'PROCESS_TABLE_TOPUP'; payload: { table: BilliardTable; transaction: Transaction } };
