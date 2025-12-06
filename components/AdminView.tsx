@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X, RefreshCcw, Filter, Printer, MapPin, Phone, Store } from 'lucide-react';
+import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle, Download, ClipboardList, Scale, Upload, Cloud, RefreshCw, CheckCircle, Link, User, Shield, Edit, Save, X, RefreshCcw, Filter, Printer, MapPin, Phone, Store, ExternalLink } from 'lucide-react';
 import { Role, ProductCategory, AppState, User as UserType } from '../types';
 
 export const AdminView: React.FC = () => {
@@ -149,9 +149,9 @@ export const AdminView: React.FC = () => {
           console.error("Upload error:", error);
           let errorMessage = (error as Error).message;
           if (errorMessage.includes("Failed to fetch")) {
-              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.\n\nPastikan Anda menggunakan URL yang berakhiran '/exec' dari 'Penerapan Baru', bukan URL '/dev'.";
+              errorMessage = "Koneksi ke server gagal. Kemungkinan besar karena masalah otorisasi atau CORS.";
           }
-          alert(`Gagal mengunggah data:\n\n${errorMessage}`);
+          alert(`Gagal mengunggah data:\n\n${errorMessage}\n\nPastikan pengaturan deployment di Google Script sudah benar:\n1. Jalankan sebagai: SAYA (ME)\n2. Siapa yang memiliki akses: SIAPA SAJA (ANYONE)`);
       } finally {
           setSyncAction('idle');
       }
@@ -173,6 +173,10 @@ export const AdminView: React.FC = () => {
           const response = await fetch(state.settings.googleScriptUrl);
 
           if (!response.ok) {
+              // Jika muncul error 401 Unauthorized atau 403 Forbidden, kemungkinan besar masalahnya ada di 'Execute as'
+              if (response.status === 401 || response.status === 403) {
+                  throw new Error(`Otorisasi Gagal (Error ${response.status}). Script mungkin dijalankan sebagai 'Pengguna' bukan sebagai 'Saya'.`);
+              }
               throw new Error(`Server merespon dengan status: ${response.status} ${response.statusText}`);
           }
           
@@ -200,12 +204,20 @@ export const AdminView: React.FC = () => {
           console.error("Download error:", error);
           let errorMessage = (error as Error).message;
           if (errorMessage.includes("Failed to fetch")) {
-              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.\n\nPastikan Anda menggunakan URL yang berakhiran '/exec' dari 'Penerapan Baru', bukan URL '/dev'.";
+              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.";
           }
-          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPastikan:\n1. URL sudah benar & berakhiran '/exec'.\n2. Script di-deploy dengan akses "Siapa saja" (Anyone).\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
+          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPASTIKAN PENGATURAN DEPLOYMENT SUDAH BENAR:\n\n1. Jalankan sebagai: SAYA (ME)\n2. Siapa yang memiliki akses: SIAPA SAJA (ANYONE)`);
       } finally {
           setSyncAction('idle');
       }
+  };
+
+  const handleTestUrl = () => {
+    if (!state.settings?.googleScriptUrl || scriptUrl.trim() === '') {
+        alert('Mohon isi URL Google Script terlebih dahulu.');
+        return;
+    }
+    window.open(scriptUrl, '_blank');
   };
 
   const openUserModal = (user: UserType | null) => {
@@ -517,6 +529,14 @@ export const AdminView: React.FC = () => {
                   <button onClick={handleCloudDownload} disabled={syncAction !== 'idle'} className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-wait text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
                       {syncAction === 'downloading' ? <><RefreshCw className="animate-spin" size={20}/> Mengunduh...</> : <><Download size={20}/> Ambil dari Cloud</>}
                   </button>
+              </div>
+              <div className="mt-4">
+                  <button onClick={handleTestUrl} className="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm">
+                      <ExternalLink size={16} /> Test URL di Browser
+                  </button>
+                  <p className="text-xs text-slate-500 mt-2 text-center px-4">
+                      Klik tombol ini. Jika muncul halaman login Google atau error, artinya setting "Siapa yang memiliki akses" di Google Script salah.
+                  </p>
               </div>
           </div>
           
