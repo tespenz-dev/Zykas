@@ -13,7 +13,7 @@ const initialState: AppState = {
   transactions: [],
   users: MOCK_USERS,
   settings: {
-    googleScriptUrl: 'https://script.google.com/macros/s/AKfycby2p4AC1lIZol5B9MEMYJuRNC-zQFMCPaKD7CSj5EApGzzlKlT9Q4hA4uPRe03F5J4dig/exec', 
+    googleScriptUrl: 'https://script.google.com/macros/s/AKfycbxjHWa3u2fEf8gWZjsoNzHqKdVzSYuXpcNUsNwqD5-L_-vZQrZexX7IhQY3MklbsxhbzQ/exec', 
     storeName: 'Cue & Brew',
     storeAddress: 'Jl. Contoh No. 123, Kota Fiktif', // Default address
     storePhone: '0812-3456-7890', // Default phone

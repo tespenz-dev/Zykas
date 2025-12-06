@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -127,16 +128,27 @@ export const AdminView: React.FC = () => {
       }
       setSyncAction('uploading');
       try {
-          await fetch(state.settings.googleScriptUrl, {
+          const response = await fetch(state.settings.googleScriptUrl, {
               method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'text/plain' },
+              // Hapus mode: 'no-cors' agar kita bisa membaca respons dari server
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify(state)
           });
-          alert('Data berhasil dikirim ke Google Cloud. Periksa Google Drive/Sheet Anda untuk konfirmasi.');
+
+          if (!response.ok) {
+              throw new Error(`Server merespon dengan status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          if (result.status === 'success') {
+            alert('Data berhasil diunggah ke Google Cloud!');
+          } else {
+            throw new Error(result.message || 'Terjadi kesalahan pada script.');
+          }
+
       } catch (error) {
           console.error("Upload error:", error);
-          alert(`Gagal mengunggah data: ${(error as Error).message}`);
+          alert(`Gagal mengunggah data: ${(error as Error).message}. Pastikan script sudah di-deploy dengan benar.`);
       } finally {
           setSyncAction('idle');
       }
@@ -159,16 +171,18 @@ export const AdminView: React.FC = () => {
           if (!response.ok) {
               throw new Error(`Server merespon dengan status: ${response.status} ${response.statusText}`);
           }
-
-          const contentType = response.headers.get('content-type');
+          
           const responseText = await response.text();
-
-          if (!contentType || !contentType.includes('application/json')) {
+          
+          // Coba parsing JSON, jika gagal berarti ada masalah di script
+          let data: AppState;
+          try {
+              data = JSON.parse(responseText);
+          } catch (e) {
               console.error("Respons dari cloud bukan JSON:", responseText);
               throw new Error('Respons bukan JSON. Pastikan fungsi doGet di Google Script Anda di-deploy dengan benar dan mengembalikan ContentService.MimeType.JSON.');
           }
 
-          const data: AppState = JSON.parse(responseText);
 
           if (data && data.users && data.products) {
               if (confirm('Data dari cloud berhasil diambil. Timpa data lokal saat ini?')) {
@@ -181,7 +195,11 @@ export const AdminView: React.FC = () => {
 
       } catch (error) {
           console.error("Download error:", error);
-          alert(`Gagal mengambil data dari cloud:\n\n${(error as Error).message}\n\nPastikan:\n1. URL sudah benar.\n2. Script di-deploy dengan akses "Anyone".\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
+          let errorMessage = (error as Error).message;
+          if (errorMessage.includes("Failed to fetch")) {
+              errorMessage += "\n\nIni biasanya karena masalah CORS atau network. Pastikan script di-deploy dengan akses 'Anyone'.";
+          }
+          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPastikan:\n1. URL sudah benar.\n2. Script di-deploy dengan akses "Anyone".\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
       } finally {
           setSyncAction('idle');
       }
@@ -535,6 +553,7 @@ export const AdminView: React.FC = () => {
                   </button>
                   <div className="flex items-center gap-2 text-sm">
                       <div className={`w-3 h-3 rounded-full ${printerStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                      {/* FIX: `printerStatus` is a string, not a function. It should not be called with `()`. */}
                       <span className="text-slate-300">Status: {printerStatus}</span>
                   </div>
               </div>
