@@ -96,6 +96,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         case 'LOGIN':
           return { ...state, user: action.payload };
         case 'LOGOUT':
+          // Logout biasa hanya menghapus sesi user, tidak menutup shift kasir.
           return { ...state, user: null };
 
         // --- LOGIKA SHIFT KASIR ---
@@ -115,7 +116,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
 
         case 'CLOSE_SHIFT': {
-            return { ...state, activeShift: null };
+            // Aksi ini sekarang menutup shift DAN me-logout user.
+            // Sesuai dengan label tombol "Tutup Kasir & Logout".
+            return { ...state, activeShift: null, user: null };
         }
         // --------------------------
         
