@@ -6,7 +6,7 @@ import { Package, TrendingUp, DollarSign, Plus, Trash2, Database, AlertTriangle,
 import { Role, ProductCategory, AppState, User as UserType } from '../types';
 
 export const AdminView: React.FC = () => {
-  const { state, dispatch, printerStatus, connectPrinter } = useApp(); // Ambil printerStatus dan connectPrinter
+  const { state, dispatch, syncStatus, printerStatus, connectPrinter } = useApp();
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'INVENTORY' | 'AUDIT' | 'USERS' | 'SYSTEM'>('DASHBOARD');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -25,7 +25,7 @@ export const AdminView: React.FC = () => {
   });
 
   // Sync State
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncAction, setSyncAction] = useState<'idle' | 'uploading' | 'downloading'>('idle');
   const [scriptUrl, setScriptUrl] = useState(state.settings?.googleScriptUrl || '');
 
   // New settings for store info
@@ -125,23 +125,20 @@ export const AdminView: React.FC = () => {
           alert('Mohon isi URL Google Script terlebih dahulu.');
           return;
       }
-      setIsSyncing(true);
+      setSyncAction('uploading');
       try {
-          const response = await fetch(state.settings.googleScriptUrl, {
+          await fetch(state.settings.googleScriptUrl, {
               method: 'POST',
-              mode: 'no-cors', // Google Scripts often require no-cors for simple posts without complex headers
-              headers: {
-                  'Content-Type': 'text/plain',
-              },
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'text/plain' },
               body: JSON.stringify(state)
           });
-          // Since no-cors is opaque, we assume success if no network error
-          alert('Data berhasil dikirim ke Google Cloud (Drive/Sheets).');
+          alert('Data berhasil dikirim ke Google Cloud. Periksa Google Drive/Sheet Anda untuk konfirmasi.');
       } catch (error) {
-          console.error(error);
-          alert('Gagal upload: ' + error);
+          console.error("Upload error:", error);
+          alert(`Gagal mengunggah data: ${(error as Error).message}`);
       } finally {
-          setIsSyncing(false);
+          setSyncAction('idle');
       }
   };
 
@@ -150,773 +147,426 @@ export const AdminView: React.FC = () => {
           alert('Mohon isi URL Google Script terlebih dahulu.');
           return;
       }
-      setIsSyncing(true);
+
+      if (state.settings.googleScriptUrl.endsWith('/dev')) {
+          alert('PERINGATAN: URL Anda berakhiran "/dev". Ini hanya untuk testing dan sering gagal. Pastikan Anda menggunakan URL dari "Deployment" dengan akses "Anyone".');
+      }
+
+      setSyncAction('downloading');
       try {
           const response = await fetch(state.settings.googleScriptUrl);
-          const data = await response.json();
-          
-          if (data && data.products && data.tables) {
-               if(confirm(`Data ditemukan dari Cloud (Tanggal: ${new Date(data.transactions[0]?.timestamp || Date.now()).toLocaleDateString()}). Timpa data lokal?`)) {
-                   dispatch({ type: 'IMPORT_DATA', payload: data as AppState });
-                   alert('Sinkronisasi Berhasil!');
-               }
-          } else {
-              alert('Format data dari cloud tidak valid.');
+
+          if (!response.ok) {
+              throw new Error(`Server merespon dengan status: ${response.status} ${response.statusText}`);
           }
+
+          const contentType = response.headers.get('content-type');
+          const responseText = await response.text();
+
+          if (!contentType || !contentType.includes('application/json')) {
+              console.error("Respons dari cloud bukan JSON:", responseText);
+              throw new Error('Respons bukan JSON. Pastikan fungsi doGet di Google Script Anda di-deploy dengan benar dan mengembalikan ContentService.MimeType.JSON.');
+          }
+
+          const data: AppState = JSON.parse(responseText);
+
+          if (data && data.users && data.products) {
+              if (confirm('Data dari cloud berhasil diambil. Timpa data lokal saat ini?')) {
+                  dispatch({ type: 'IMPORT_DATA', payload: data });
+                  alert('Data berhasil diimpor dari cloud!');
+              }
+          } else {
+              throw new Error('Format data dari cloud tidak valid atau kosong.');
+          }
+
       } catch (error) {
-          console.error(error);
-          alert('Gagal download. Pastikan script URL benar dan sudah di-deploy sebagai "Anyone".');
+          console.error("Download error:", error);
+          alert(`Gagal mengambil data dari cloud:\n\n${(error as Error).message}\n\nPastikan:\n1. URL sudah benar.\n2. Script di-deploy dengan akses "Anyone".\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
       } finally {
-          setIsSyncing(false);
+          setSyncAction('idle');
       }
   };
 
-  const handlePhysicalStockChange = (id: string, value: string) => {
-      setPhysicalStocks(prev => ({ ...prev, [id]: value }));
-  };
-
-  const handleAdjustStock = (productId: string, physicalQty: number, systemQty: number, productName: string) => {
-      if (confirm(`SESUAIKAN STOK: \n\nAnda akan mengubah stok "${productName}" dari ${systemQty} menjadi ${physicalQty}.\n\nApakah Anda yakin perhitungan fisik sudah benar?`)) {
-          dispatch({ 
-              type: 'SET_PRODUCT_STOCK', 
-              payload: { productId, stock: physicalQty } 
-          });
-          // Clear the input for this item after sync
-          const newStocks = {...physicalStocks};
-          delete newStocks[productId];
-          setPhysicalStocks(newStocks);
-      }
-  };
-
-  // User Management Handlers
-  const handleOpenAddUser = () => {
-      setEditingUser(null);
-      setUserFormData({
-          name: '',
-          username: '',
-          role: Role.CASHIER,
-          pin: ''
-      });
-      setIsUserModalOpen(true);
-  };
-
-  const handleOpenEditUser = (user: UserType) => {
+  const openUserModal = (user: UserType | null) => {
       setEditingUser(user);
-      setUserFormData({
-          name: user.name,
-          username: user.username,
-          role: user.role,
-          pin: user.pin
-      });
+      if (user) {
+          setUserFormData(user);
+      } else {
+          setUserFormData({ name: '', username: '', role: Role.CASHIER, pin: '' });
+      }
       setIsUserModalOpen(true);
   };
 
-  const handleDeleteUser = (id: string, name: string) => {
-      if (confirm(`Hapus operator "${name}"?`)) {
-          dispatch({ type: 'REMOVE_USER', payload: id });
-      }
+  const handleUserFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setUserFormData(prev => ({ ...prev, [name]: value }));
   };
-
+  
   const handleUserSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (!userFormData.name || !userFormData.username || !userFormData.pin) {
-          alert("Mohon lengkapi semua data.");
+          alert('Semua field wajib diisi!');
           return;
       }
 
       if (editingUser) {
-          dispatch({
-              type: 'EDIT_USER',
-              payload: { ...editingUser, ...userFormData } as UserType
-          });
+          dispatch({ type: 'EDIT_USER', payload: { ...editingUser, ...userFormData } as UserType });
       } else {
-          dispatch({
-              type: 'ADD_USER',
-              payload: {
-                  id: `user-${Date.now()}`,
-                  name: userFormData.name || '',
-                  username: userFormData.username || '',
-                  role: userFormData.role || Role.CASHIER,
-                  pin: userFormData.pin || ''
-              }
-          });
+          const newUser: UserType = {
+              id: `user-${Date.now()}`,
+              ...userFormData
+          } as UserType;
+          dispatch({ type: 'ADD_USER', payload: newUser });
       }
       setIsUserModalOpen(false);
   };
 
-  // Fix: Explicitly return JSX from the renderDashboard function.
-  const renderDashboard = () => {
-    return (
-      <div className="space-y-6 animate-fade-in pb-20 md:pb-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-            <div className="flex items-center gap-4 mb-2">
-              <div className="p-3 bg-emerald-500/20 rounded-lg text-emerald-400"><DollarSign size={24} /></div>
-              <span className="text-slate-400 font-medium text-sm md:text-base">Pendapatan Hari Ini</span>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-white">Rp {dailyTotal.toLocaleString()}</div>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-            <div className="flex items-center gap-4 mb-2">
-              <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400"><TrendingUp size={24} /></div>
-              <span className="text-slate-400 font-medium text-sm md:text-base">Total Transaksi</span>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-white">{transactions.length}</div>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-            <div className="flex items-center gap-4 mb-2">
-              <div className="p-3 bg-purple-500/20 rounded-lg text-purple-400"><Package size={24} /></div>
-              <span className="text-slate-400 font-medium text-sm md:text-base">Total Produk</span>
-            </div>
-            <div className="text-2xl md:text-3xl font-bold text-white">{state.products.length} Menu</div>
-          </div>
-        </div>
-
-        <div className="bg-slate-800 p-4 md:p-6 rounded-2xl border border-slate-700 h-64 md:h-96">
-          <h3 className="text-lg md:text-xl font-bold text-white mb-6">Grafik Transaksi Terakhir</h3>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="time" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                itemStyle={{ color: '#34d399' }}
-              />
-              <Bar dataKey="amount" fill="#34d399" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
+  const handleUserDelete = (id: string) => {
+      if (state.users.length <= 1) {
+          alert('Tidak bisa menghapus user terakhir.');
+          return;
+      }
+      if (confirm('Apakah Anda yakin ingin menghapus user ini?')) {
+          dispatch({ type: 'REMOVE_USER', payload: id });
+      }
   };
 
-  // Fix: Explicitly return JSX from the renderInventory function.
-  const renderInventory = () => {
-    return (
-      <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden pb-20 md:pb-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left min-w-[600px]">
-              <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs font-semibold">
-              <tr>
-                  <th className="p-4">Produk</th>
-                  <th className="p-4">Kategori</th>
-                  <th className="p-4 text-right">Harga</th>
-                  <th className="p-4 text-center">Stok</th>
-                  <th className="p-4 text-center">Aksi</th>
-              </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-              {state.products.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-700/50 transition-colors">
-                  <td className="p-4 font-medium text-white">{p.name}</td>
-                  <td className="p-4 text-slate-400 text-sm">{p.category}</td>
-                  <td className="p-4 text-right font-mono text-emerald-400">Rp {p.price.toLocaleString()}</td>
-                  <td className="p-4 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${p.stock < 10 ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-700 text-white'}`}>
-                      {p.stock} {p.unit}
-                      </span>
-                  </td>
-                  <td className="p-4 flex justify-center gap-2">
-                      <button 
-                      onClick={() => dispatch({ type: 'UPDATE_STOCK', payload: { productId: p.id, quantity: 10 } })}
-                      className="p-2 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors"
-                      title="Tambah Stok (+10)"
-                      >
-                      <Plus size={18} />
-                      </button>
-                  </td>
-                  </tr>
-              ))}
-              </tbody>
-          </table>
-        </div>
-      </div>
-    );
+  const renderCloudStatusIcon = () => {
+    if (!state.settings?.googleScriptUrl) {
+        return <Cloud size={16} className="text-slate-500" />;
+    }
+    switch (syncStatus) {
+        case 'SYNCING': return <RefreshCw size={16} className="text-blue-400 animate-spin" />;
+        case 'SUCCESS': return <CheckCircle size={16} className="text-emerald-400" />;
+        case 'ERROR': return <AlertTriangle size={16} className="text-rose-500" />;
+        default: return <Cloud size={16} className="text-slate-400" />;
+    }
   };
+  
+  const getCloudStatusText = () => {
+      if (!state.settings?.googleScriptUrl) return "Nonaktif";
+      switch (syncStatus) {
+          case 'SYNCING': return "Menyimpan...";
+          case 'SUCCESS': return "Tersimpan";
+          case 'ERROR': return "Gagal";
+          default: return "Siap";
+      }
+  };
+
+  const renderDashboard = () => (
+    <div className="space-y-6">
+       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center gap-5">
+              <div className="p-4 bg-emerald-500/10 rounded-xl text-emerald-400">
+                  <DollarSign size={32} />
+              </div>
+              <div>
+                  <div className="text-sm text-slate-400">Pendapatan Hari Ini</div>
+                  <div className="text-3xl font-bold text-white">Rp {dailyTotal.toLocaleString()}</div>
+              </div>
+          </div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center gap-5">
+              <div className="p-4 bg-cyan-500/10 rounded-xl text-cyan-400">
+                  <TrendingUp size={32} />
+              </div>
+              <div>
+                  <div className="text-sm text-slate-400">Total Transaksi Hari Ini</div>
+                  <div className="text-3xl font-bold text-white">{transactions.filter(t => new Date(t.timestamp).toDateString() === today).length}</div>
+              </div>
+          </div>
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 flex items-center gap-5">
+              <div className="p-4 bg-amber-500/10 rounded-xl text-amber-400">
+                  <Package size={32} />
+              </div>
+              <div>
+                  <div className="text-sm text-slate-400">Item Stok Menipis</div>
+                  <div className="text-3xl font-bold text-white">{state.products.filter(p => p.stock <= 10).length}</div>
+              </div>
+          </div>
+       </div>
+
+       <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+         <h3 className="text-lg font-bold text-white mb-4">10 Transaksi Terakhir</h3>
+         <div className="h-64">
+           <ResponsiveContainer width="100%" height="100%">
+             <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+               <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
+               <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(value) => `Rp${Number(value)/1000}k`} />
+               <Tooltip
+                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '0.5rem' }}
+                labelStyle={{ color: '#cbd5e1' }}
+                formatter={(value) => [`Rp ${Number(value).toLocaleString()}`, 'Total']}
+               />
+               <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} />
+             </BarChart>
+           </ResponsiveContainer>
+         </div>
+       </div>
+    </div>
+  );
 
   const renderAudit = () => {
-    // Filter produk berdasarkan tab audit
-    const productsToAudit = state.products.filter(p => {
-        if (auditFilter === 'ALL') return true;
+    const auditProducts = state.products.filter(p => {
         if (auditFilter === 'RAW') return p.category === ProductCategory.RAW_MATERIAL;
         if (auditFilter === 'PRODUCT') return p.category !== ProductCategory.RAW_MATERIAL;
         return true;
     });
-    
-    // Calculate estimated total loss
-    let totalEstimatedLoss = 0;
-    
-    productsToAudit.forEach(item => {
-        const physicalStr = physicalStocks[item.id];
-        if (physicalStr) {
-            const physical = parseFloat(physicalStr);
-            const diff = physical - item.stock;
-            
-            if (diff < 0) { // Rugi (Stok fisik lebih sedikit)
-                 let revenuePerUnit = 0;
-                 
-                 if (item.category === ProductCategory.RAW_MATERIAL) {
-                     // Untuk bahan baku, hitung berdasarkan yield dan harga produk terkait
-                     const linkedProducts = state.products.filter(p => p.stockLinkedToId === item.id);
-                     const maxPrice = linkedProducts.length > 0 ? Math.max(...linkedProducts.map(p => p.price)) : 0;
-                     revenuePerUnit = maxPrice * (item.yield || 1); 
-                     // Fallback ke 0 jika tidak ada produk terkait, atau user harus isi yield
-                 } else {
-                     // Untuk produk jadi, gunakan harga jualnya langsung
-                     revenuePerUnit = item.price;
-                 }
-                 
-                 totalEstimatedLoss += Math.abs(diff * revenuePerUnit);
+
+    const handleAuditSubmit = () => {
+        if (Object.keys(physicalStocks).length === 0) {
+            alert("Mohon isi setidaknya satu stok fisik untuk disesuaikan.");
+            return;
+        }
+
+        let changesSummary = "Ringkasan Perubahan Stok:\n\n";
+        let hasChanges = false;
+
+        for (const productId in physicalStocks) {
+            const systemStock = state.products.find(p => p.id === productId)?.stock ?? 0;
+            const physicalStock = parseInt(physicalStocks[productId]);
+
+            if (!isNaN(physicalStock) && systemStock !== physicalStock) {
+                const productName = state.products.find(p => p.id === productId)?.name;
+                changesSummary += `- ${productName}: ${systemStock} -> ${physicalStock}\n`;
+                hasChanges = true;
             }
         }
-    });
+        
+        if (!hasChanges) {
+            alert("Tidak ada perbedaan stok yang ditemukan.");
+            return;
+        }
 
+        if (confirm(changesSummary + "\nApakah Anda yakin ingin menerapkan perubahan ini?")) {
+            for (const productId in physicalStocks) {
+                const physicalStock = parseInt(physicalStocks[productId]);
+                if (!isNaN(physicalStock)) {
+                    dispatch({ type: 'SET_PRODUCT_STOCK', payload: { productId, stock: physicalStock } });
+                }
+            }
+            alert("Stok berhasil disesuaikan!");
+            setPhysicalStocks({});
+        }
+    };
+    
     return (
-        <div className="space-y-6 pb-20 md:pb-0">
-            {/* Warning Box jika ada rugi */}
-            {totalEstimatedLoss > 0 && (
-                <div className="bg-rose-500/10 border border-rose-500/30 p-4 rounded-xl flex items-center justify-between animate-fade-in">
-                    <div className="flex items-center gap-3">
-                         <AlertTriangle className="text-rose-500" />
-                         <div>
-                             <div className="font-bold text-rose-500">Terdeteksi Potensi Kerugian</div>
-                             <div className="text-xs text-rose-300">Berdasarkan selisih stok fisik yang diinput</div>
-                         </div>
-                    </div>
-                    <div className="text-xl font-bold text-rose-500">
-                        Rp {totalEstimatedLoss.toLocaleString()}
-                    </div>
-                </div>
-            )}
-
-            <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                            <ClipboardList className="text-amber-500" /> Audit Bahan Baku & Stok
-                        </h3>
-                        <p className="text-slate-400 text-sm">
-                            Input jumlah <strong>Stok Fisik</strong> yang ada di lokasi saat ini.
-                        </p>
-                    </div>
-
-                    {/* Filter Tabs */}
-                    <div className="flex bg-slate-900 p-1 rounded-lg">
-                        <button 
-                            onClick={() => setAuditFilter('ALL')}
-                            className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${auditFilter === 'ALL' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Semua
-                        </button>
-                        <button 
-                            onClick={() => setAuditFilter('RAW')}
-                            className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${auditFilter === 'RAW' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Bahan Baku
-                        </button>
-                        <button 
-                            onClick={() => setAuditFilter('PRODUCT')}
-                            className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${auditFilter === 'PRODUCT' ? 'bg-white text-slate-900' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Produk Jual
-                        </button>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left min-w-[900px]">
-                        <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs font-semibold">
-                            <tr>
-                                <th className="p-4">Nama Item</th>
-                                <th className="p-4 text-center">Stok Sistem</th>
-                                <th className="p-4 text-center w-36">Stok Fisik (Input)</th>
-                                <th className="p-4 text-center">Selisih</th>
-                                <th className="p-4 text-right">Estimasi Rugi</th>
-                                <th className="p-4 text-center">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-700">
-                            {productsToAudit.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="p-8 text-center text-slate-500">
-                                        Tidak ada item untuk diaudit pada kategori ini.
-                                    </td>
-                                </tr>
-                            ) : productsToAudit.map(item => {
-                                const systemStock = item.stock;
-                                const physicalStockStr = physicalStocks[item.id];
-                                const hasInput = physicalStockStr !== undefined && physicalStockStr !== '';
-                                const physicalStock = hasInput ? parseFloat(physicalStockStr) : systemStock;
-                                const diff = physicalStock - systemStock;
-                                
-                                // Kalkulasi Rugi Per Item
-                                let lossValue = 0;
-                                if (diff < -0.001) {
-                                    let revenuePerUnit = 0;
-                                    if (item.category === ProductCategory.RAW_MATERIAL) {
-                                        const linkedProducts = state.products.filter(p => p.stockLinkedToId === item.id);
-                                        const maxPrice = linkedProducts.length > 0 ? Math.max(...linkedProducts.map(p => p.price)) : 0;
-                                        revenuePerUnit = maxPrice * (item.yield || 1); 
-                                    } else {
-                                        revenuePerUnit = item.price;
-                                    }
-                                    lossValue = Math.abs(diff * revenuePerUnit);
-                                }
-                                
-                                const isDiscrepancy = Math.abs(diff) > 0.001;
-                                const isLoss = diff < -0.001;
-                                const isGain = diff > 0.001;
-
-                                return (
-                                    <tr key={item.id} className="hover:bg-slate-700/30 transition-colors">
-                                        <td className="p-4">
-                                            <div className="font-bold text-white">{item.name}</div>
-                                            <div className="flex gap-2 text-[10px] mt-1">
-                                                 <span className={`px-1.5 rounded ${item.category === ProductCategory.RAW_MATERIAL ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                                     {item.category === ProductCategory.RAW_MATERIAL ? 'BAHAN BAKU' : 'PRODUK'}
-                                                 </span>
-                                                 <span className="text-slate-500">{item.unit || 'Unit'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <span className="font-mono text-blue-300 font-bold bg-blue-900/30 px-2 py-1 rounded">
-                                                {systemStock.toFixed(2)}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            <input 
-                                                type="number" 
-                                                className={`w-full bg-slate-900 border text-center rounded-lg py-2 px-1 font-bold outline-none focus:ring-2 ${isDiscrepancy ? 'border-amber-500 focus:ring-amber-500' : 'border-slate-600 focus:ring-emerald-500'}`}
-                                                value={physicalStocks[item.id] || ''}
-                                                placeholder={systemStock.toFixed(2)}
-                                                onChange={(e) => handlePhysicalStockChange(item.id, e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            {isDiscrepancy ? (
-                                                <span className={`font-bold ${isLoss ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                                    {diff > 0 ? '+' : ''}{diff.toFixed(2)}
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-600">-</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            {isLoss ? (
-                                                <div className="flex flex-col items-end">
-                                                    <div className="flex items-center gap-1 text-rose-500 font-bold bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">
-                                                        <AlertTriangle size={12} />
-                                                        Rp {lossValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-600">-</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            {isDiscrepancy && hasInput && (
-                                                <button 
-                                                    onClick={() => handleAdjustStock(item.id, physicalStock, systemStock, item.name)}
-                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1 mx-auto shadow-lg shadow-emerald-900/20"
-                                                >
-                                                    <RefreshCcw size={14} /> Sesuaikan
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    );
-  };
-
-  // Fix: Explicitly return JSX from the renderUsers function.
-  const renderUsers = () => {
-    return (
-        <div className="space-y-6 pb-20 md:pb-0">
-           <div className="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-700">
+      <div className="space-y-4">
+          <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h3 className="text-xl font-bold text-white">Manajemen Operator</h3>
-                <p className="text-slate-400 text-sm">Kelola akun admin dan kasir yang bertugas.</p>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2"><ClipboardList size={20}/> Stok Opname / Audit Fisik</h3>
+                  <p className="text-sm text-slate-400 mt-1">Hitung stok fisik lalu masukkan ke kolom "Fisik" untuk menyesuaikan data sistem.</p>
               </div>
-              <button 
-                 onClick={handleOpenAddUser}
-                 className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/20"
-              >
-                 <Plus size={18} /> Tambah Operator
-              </button>
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {state.users.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-500 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${u.role === Role.ADMIN ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
-                                {u.username[0].toUpperCase()}
-                            </div>
-                            <div>
-                                <div className="text-white font-bold text-lg">{u.name}</div>
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${u.role === Role.ADMIN ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-600 text-slate-400'}`}>
-                                        {u.role}
-                                    </span>
-                                    <span className="text-slate-500 text-xs">@{u.username}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => handleOpenEditUser(u)}
-                                className="p-2 bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-colors"
-                                title="Edit"
-                            >
-                                <Edit size={18} />
-                            </button>
-                            {u.role !== Role.ADMIN && (
-                                <button 
-                                    onClick={() => handleDeleteUser(u.id, u.name)}
-                                    className="p-2 bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-colors"
-                                    title="Hapus"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-           </div>
-
-           {/* User Modal */}
-           {isUserModalOpen && (
-               <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
-                   <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-                       <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-850">
-                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                               {editingUser ? <Edit size={20} className="text-blue-500"/> : <Plus size={20} className="text-emerald-500"/>}
-                               {editingUser ? 'Edit Operator' : 'Tambah Operator Baru'}
-                           </h3>
-                           <button onClick={() => setIsUserModalOpen(false)} className="text-slate-500 hover:text-white">
-                               <X size={24} />
-                           </button>
-                       </div>
-                       
-                       <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
-                           <div>
-                               <label className="block text-sm font-medium text-slate-400 mb-1">Nama Lengkap</label>
-                               <input 
-                                   type="text" 
-                                   required
-                                   value={userFormData.name}
-                                   onChange={e => setUserFormData({...userFormData, name: e.target.value})}
-                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                   placeholder="Contoh: Budi Santoso"
-                               />
-                           </div>
-                           
-                           <div className="grid grid-cols-2 gap-4">
-                               <div>
-                                   <label className="block text-sm font-medium text-slate-400 mb-1">Username (Inisial)</label>
-                                   <input 
-                                       type="text" 
-                                       required
-                                       value={userFormData.username}
-                                       onChange={e => setUserFormData({...userFormData, username: e.target.value.toLowerCase()})}
-                                       className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                       placeholder="budi"
-                                   />
-                               </div>
-                               <div>
-                                   <label className="block text-sm font-medium text-slate-400 mb-1">Role</label>
-                                   <select 
-                                       value={userFormData.role}
-                                       onChange={e => setUserFormData({...userFormData, role: e.target.value as Role})}
-                                       className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                                   >
-                                       <option value={Role.CASHIER}>Kasir</option>
-                                       <option value={Role.ADMIN}>Admin</option>
-                                   </select>
-                               </div>
-                           </div>
-
-                           <div>
-                               <label className="block text-sm font-medium text-slate-400 mb-1">PIN Akses (6 Angka)</label>
-                               <input 
-                                   type="text" 
-                                   required
-                                   pattern="[0-9]*"
-                                   maxLength={6}
-                                   minLength={6}
-                                   value={userFormData.pin}
-                                   onChange={e => setUserFormData({...userFormData, pin: e.target.value.replace(/[^0-9]/g, '')})}
-                                   className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white font-mono tracking-widest text-center text-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                                   placeholder="123456"
-                               />
-                           </div>
-
-                           <div className="flex gap-3 pt-4 border-t border-slate-700">
-                               <button 
-                                   type="button"
-                                   onClick={() => setIsUserModalOpen(false)}
-                                   className="flex-1 py-3.5 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700 font-bold transition-colors"
-                               >
-                                   Batal
-                               </button>
-                               <button 
-                                   type="submit"
-                                   className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition-colors flex items-center justify-center gap-2"
-                               >
-                                   <Save size={18} /> Simpan
-                               </button>
-                           </div>
-                       </form>
-                   </div>
-               </div>
-           )}
-        </div>
-    );
-  };
-
-  // Fix: Explicitly return JSX from the renderSystem function.
-  const renderSystem = () => {
-    return (
-      <div className="space-y-6 pb-20 md:pb-0">
-         
-         {/* Store Information Section */}
-         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <Store size={120} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-               <Store className="text-blue-500" /> Informasi Toko
-            </h3>
-            <p className="text-slate-400 text-sm mb-6 max-w-2xl">
-                Informasi ini akan muncul di bagian atas struk pembayaran.
-            </p>
-
-            <div className="space-y-4">
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nama Usaha</label>
-                    <input 
-                        type="text" 
-                        value={storeNameInput}
-                        onChange={(e) => setStoreNameInput(e.target.value)}
-                        placeholder="Contoh: Cue & Brew Billiard"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    />
+              <div className="flex items-center gap-2">
+                <div className="flex bg-slate-700 p-1 rounded-lg">
+                    <button onClick={() => setAuditFilter('ALL')} className={`px-3 py-1.5 text-xs rounded ${auditFilter === 'ALL' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Semua</button>
+                    <button onClick={() => setAuditFilter('PRODUCT')} className={`px-3 py-1.5 text-xs rounded ${auditFilter === 'PRODUCT' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Produk Jual</button>
+                    <button onClick={() => setAuditFilter('RAW')} className={`px-3 py-1.5 text-xs rounded ${auditFilter === 'RAW' ? 'bg-white text-slate-900' : 'text-slate-300'}`}>Bahan Baku</button>
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                        <MapPin size={14} /> Alamat Usaha
-                    </label>
-                    <input 
-                        type="text" 
-                        value={storeAddressInput}
-                        onChange={(e) => setStoreAddressInput(e.target.value)}
-                        placeholder="Contoh: Jl. Sudirman No. 123"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                        <Phone size={14} /> Nomor Telepon
-                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="0" fill="#25D366" className="inline-block ml-1">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                        </svg>
-                    </label>
-                    <input 
-                        type="tel" 
-                        value={storePhoneInput}
-                        onChange={(e) => setStorePhoneInput(e.target.value)}
-                        placeholder="Contoh: 0812-3456-7890"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2">
-                        <Link size={14} /> Pesan Footer Struk (Contoh: Password WiFi)
-                    </label>
-                    <input 
-                        type="text" 
-                        value={customReceiptFooterInput}
-                        onChange={(e) => setCustomReceiptFooterInput(e.target.value)}
-                        placeholder="Contoh: WiFi Pass: CueBrew123"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    />
-                </div>
-                <button 
-                    onClick={handleSaveSettings}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all"
-                >
-                    <Save size={18} /> Simpan Pengaturan Toko
+                <button onClick={handleAuditSubmit} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 text-sm">
+                    <Save size={16}/> Terapkan
                 </button>
-            </div>
-         </div>
-
-         {/* Cloud Sync Section */}
-         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <Cloud size={120} />
-            </div>
-            
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-               <Cloud className="text-blue-500" /> Cloud Sync (Google Drive/Sheets)
-            </h3>
-            <p className="text-slate-400 text-sm mb-6 max-w-2xl">
-                Hubungkan aplikasi dengan Google Apps Script untuk menyimpan data secara online.
-                Ini memungkinkan sinkronisasi data antara Laptop, Tablet, dan HP.
-            </p>
-            
-            <div className="mb-6">
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Google Apps Script Web App URL</label>
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        value={scriptUrl}
-                        onChange={(e) => setScriptUrl(e.target.value)}
-                        placeholder="https://script.google.com/macros/s/..."
-                        className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
-                    />
-                    <button 
-                        onClick={handleSaveSettings} // Use combined save function
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold"
-                    >
-                        <CheckCircle size={20} />
-                    </button>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-2">
-                    *Pastikan script dideploy sebagai "Web App" dengan akses "Anyone (Siapa Saja)".
-                </p>
-            </div>
-
-            <div className="flex gap-4">
-                <button 
-                    onClick={handleCloudUpload}
-                    disabled={isSyncing}
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-900/20"
-                >
-                    {isSyncing ? <RefreshCw className="animate-spin" /> : <Upload />} 
-                    Upload ke Cloud
-                </button>
-                <button 
-                    onClick={handleCloudDownload}
-                    disabled={isSyncing}
-                    className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-900/20"
-                >
-                    {isSyncing ? <RefreshCw className="animate-spin" /> : <Download />} 
-                    Ambil dari Cloud
-                </button>
-            </div>
-         </div>
-
-          {/* Bluetooth Printer Section */}
-         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-             <div className="flex justify-between items-start mb-4">
-                 <div>
-                     <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                         <Printer className="text-cyan-500" /> Printer Bluetooth
-                     </h3>
-                     <p className="text-slate-400 text-sm">
-                         Hubungkan ke printer thermal ESC/POS untuk mencetak struk.
-                     </p>
-                 </div>
-                 <div className="flex flex-col items-center">
-                     <span className={`w-3 h-3 rounded-full ${
-                         printerStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' :
-                         printerStatus === 'connecting' ? 'bg-blue-500 animate-pulse' :
-                         printerStatus === 'error' ? 'bg-rose-500' : 'bg-slate-500'
-                     }`} />
-                     <span className="text-[10px] text-slate-500 mt-1 uppercase">
-                         {printerStatus === 'connected' ? 'Terhubung' :
-                          printerStatus === 'connecting' ? 'Menghubungkan...' :
-                          printerStatus === 'error' ? 'Error' : 'Putus'}
-                     </span>
-                 </div>
-             </div>
-             
-             <button 
-                 onClick={connectPrinter}
-                 disabled={printerStatus === 'connecting' || printerStatus === 'connected'}
-                 className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 transition-all"
-             >
-                 {printerStatus === 'connecting' ? <RefreshCw className="animate-spin" /> : <Printer />} 
-                 {printerStatus === 'connected' ? 'Printer Terhubung' : 'Hubungkan Printer'}
-             </button>
-             <p className="text-[10px] text-slate-500 mt-2">
-                 *Pastikan printer sudah menyala dan dalam mode pairing.
-                 Fitur ini TIDAK didukung di browser Safari/Chrome iOS. Gunakan browser 'Bluefy' di iPad.
-             </p>
-         </div>
-
-
-         {/* Local Backup Section */}
-         <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Database size={24}/> Backup Lokal (File)</h3>
-            
-            <input 
-               type="file" 
-               ref={fileInputRef} 
-               style={{ display: 'none' }} 
-               accept=".json" 
-               onChange={handleFileChange}
-            />
-
-            <div className="flex flex-col md:flex-row gap-4">
-                <button 
-                    onClick={handleExport}
-                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600"
-                >
-                    <Download size={20} /> Backup File (.json)
-                </button>
-                
-                <button 
-                    onClick={handleImportClick}
-                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 border border-slate-600"
-                >
-                    <Upload size={20} /> Restore File (.json)
-                </button>
-
-                <button 
-                    onClick={handleReset}
-                    className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2"
-                >
-                    <AlertTriangle size={20} /> Factory Reset
-                </button>
-            </div>
-         </div>
+              </div>
+          </div>
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden max-h-[calc(100vh-20rem)] overflow-y-auto">
+              <table className="w-full text-left">
+                  <thead className="bg-slate-900/50 sticky top-0 text-slate-400 uppercase text-xs z-10">
+                      <tr>
+                          <th className="p-4">Nama Produk</th>
+                          <th className="p-4 text-center">Stok Sistem</th>
+                          <th className="p-4 text-center w-40">Stok Fisik</th>
+                          <th className="p-4 text-center">Selisih</th>
+                      </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700">
+                      {auditProducts.map(product => {
+                          const physicalStock = physicalStocks[product.id];
+                          const difference = (physicalStock !== undefined && physicalStock !== '') ? parseInt(physicalStock) - product.stock : 0;
+                          return (
+                              <tr key={product.id} className={`${difference !== 0 ? 'bg-rose-500/10' : ''}`}>
+                                  <td className="p-4 text-white font-medium">{product.name}</td>
+                                  <td className="p-4 text-center text-slate-300 font-mono">{product.stock}</td>
+                                  <td className="p-4">
+                                      <input 
+                                          type="number"
+                                          value={physicalStock || ''}
+                                          onChange={e => setPhysicalStocks({...physicalStocks, [product.id]: e.target.value})}
+                                          className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white text-center focus:ring-2 focus:ring-emerald-500 outline-none"
+                                          placeholder="Hitung..."
+                                      />
+                                  </td>
+                                  <td className={`p-4 text-center font-bold font-mono ${difference > 0 ? 'text-emerald-400' : difference < 0 ? 'text-rose-400' : 'text-slate-500'}`}>
+                                      {difference > 0 ? `+${difference}` : difference}
+                                  </td>
+                              </tr>
+                          );
+                      })}
+                  </tbody>
+              </table>
+          </div>
       </div>
     );
   };
+  
+  const renderUsers = () => (
+      <div className="space-y-4">
+          <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><User size={20}/> Manajemen Pengguna</h3>
+              <button onClick={() => openUserModal(null)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 text-sm">
+                  <Plus size={16}/> Tambah User
+              </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {state.users.map(user => (
+                  <div key={user.id} className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                      <div className="flex justify-between items-start">
+                          <div>
+                              <div className="font-bold text-white">{user.name}</div>
+                              <div className="text-sm text-slate-400">@{user.username}</div>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${user.role === Role.ADMIN ? 'bg-rose-500/20 text-rose-400' : 'bg-cyan-500/20 text-cyan-400'}`}>{user.role}</span>
+                      </div>
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-slate-700">
+                          <button onClick={() => openUserModal(user)} className="flex-1 py-2 text-sm bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white rounded-md">Edit</button>
+                          <button onClick={() => handleUserDelete(user.id)} className="flex-1 py-2 text-sm bg-rose-600/20 text-rose-400 hover:bg-rose-500 hover:text-white rounded-md">Hapus</button>
+                      </div>
+                  </div>
+              ))}
+          </div>
+          
+          {isUserModalOpen && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                  <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6">
+                      <h3 className="text-xl font-bold mb-4">{editingUser ? 'Edit User' : 'Tambah User Baru'}</h3>
+                      <form onSubmit={handleUserSubmit} className="space-y-4">
+                          <input name="name" value={userFormData.name} onChange={handleUserFormChange} placeholder="Nama Lengkap" className="w-full bg-slate-800 p-3 rounded-md text-white" required />
+                          <input name="username" value={userFormData.username} onChange={handleUserFormChange} placeholder="Username (tanpa spasi)" className="w-full bg-slate-800 p-3 rounded-md text-white" required />
+                          <input name="pin" type="password" value={userFormData.pin} onChange={handleUserFormChange} placeholder="PIN (6 digit angka)" className="w-full bg-slate-800 p-3 rounded-md text-white" required pattern="\d{6}" maxLength={6} />
+                          <select name="role" value={userFormData.role} onChange={handleUserFormChange} className="w-full bg-slate-800 p-3 rounded-md text-white">
+                              <option value={Role.CASHIER}>Kasir</option>
+                              <option value={Role.ADMIN}>Admin</option>
+                          </select>
+                          <div className="flex gap-3 pt-2">
+                              <button type="button" onClick={() => setIsUserModalOpen(false)} className="flex-1 py-3 bg-slate-700 rounded-md">Batal</button>
+                              <button type="submit" className="flex-1 py-3 bg-emerald-600 rounded-md">Simpan</button>
+                          </div>
+                      </form>
+                  </div>
+              </div>
+          )}
+      </div>
+  );
+
+  const renderSystem = () => (
+      <div className="space-y-6">
+          {/* Store Info Settings */}
+          <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+              <div className="flex items-center gap-3 text-white font-bold text-xl mb-4">
+                  <Store size={24} /> Informasi Toko (Struk)
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                  <input value={storeNameInput} onChange={e => setStoreNameInput(e.target.value)} placeholder="Nama Toko" className="w-full bg-slate-800 p-3 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={storePhoneInput} onChange={e => setStorePhoneInput(e.target.value)} placeholder="No. Telepon Toko" className="w-full bg-slate-800 p-3 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={storeAddressInput} onChange={e => setStoreAddressInput(e.target.value)} placeholder="Alamat Toko" className="md:col-span-2 w-full bg-slate-800 p-3 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" />
+                  <input value={customReceiptFooterInput} onChange={e => setCustomReceiptFooterInput(e.target.value)} placeholder="Footer Struk (cth: Password WiFi)" className="md:col-span-2 w-full bg-slate-800 p-3 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" />
+              </div>
+          </div>
+          
+          {/* Cloud Sync Settings */}
+          <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+              <div className="flex items-center gap-3 text-white font-bold text-xl mb-2">
+                  <Cloud size={24} /> Cloud Sync (Google Drive/Sheets)
+              </div>
+              <p className="text-sm text-slate-400 mb-2">
+                  Hubungkan aplikasi dengan Google Apps Script untuk menyimpan data secara online. Ini memungkinkan sinkronisasi data antar Laptop, Tablet, dan HP.
+              </p>
+              <p className="text-xs text-slate-500 italic flex items-center gap-2 mb-4">
+                  {renderCloudStatusIcon()}
+                  Status Auto-Sync: {getCloudStatusText()}. Backup otomatis berjalan setiap 1 menit di tab aktif.
+              </p>
+              <div className="relative mb-2">
+                  <input type="text" value={scriptUrl} onChange={e => setScriptUrl(e.target.value)} className="w-full bg-slate-800 p-3 pl-4 pr-12 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" placeholder="https://script.google.com/.../exec" />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-slate-700 rounded"><CheckCircle size={16} className="text-emerald-400" /></div>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">*Pastikan script dideploy sebagai "Web App" dengan akses "Anyone (Siapa Saja)".</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button onClick={handleCloudUpload} disabled={syncAction !== 'idle'} className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-wait text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                      {syncAction === 'uploading' ? <><RefreshCw className="animate-spin" size={20}/> Mengunggah...</> : <><Upload size={20}/> Upload ke Cloud</>}
+                  </button>
+                  <button onClick={handleCloudDownload} disabled={syncAction !== 'idle'} className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-600 disabled:cursor-wait text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                      {syncAction === 'downloading' ? <><RefreshCw className="animate-spin" size={20}/> Mengunduh...</> : <><Download size={20}/> Ambil dari Cloud</>}
+                  </button>
+              </div>
+          </div>
+          
+          <div className="flex justify-center">
+              <button onClick={handleSaveSettings} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-8 rounded-xl flex items-center gap-2">
+                  <Save size={18}/> Simpan Semua Pengaturan
+              </button>
+          </div>
+          
+          {/* Data & System Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-slate-700">
+              <div className="bg-slate-800 p-4 rounded-xl">
+                  <h4 className="font-bold text-white mb-2">Data Lokal</h4>
+                  <div className="flex gap-2">
+                      <button onClick={handleExport} className="flex-1 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md">Export (.json)</button>
+                      <button onClick={handleImportClick} className="flex-1 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-md">Import (.json)</button>
+                      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json" />
+                  </div>
+              </div>
+              <div className="bg-rose-900/50 p-4 rounded-xl border border-rose-500/30">
+                  <h4 className="font-bold text-rose-300 mb-2">Zona Berbahaya</h4>
+                  <button onClick={handleReset} className="w-full py-2 text-sm bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-md">Reset Aplikasi</button>
+              </div>
+          </div>
+
+           {/* Printer Settings */}
+          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+              <h4 className="font-bold text-white mb-2 flex items-center gap-2"><Printer size={18}/> Printer Bluetooth</h4>
+              <p className="text-xs text-slate-400 mb-3">Hubungkan dengan printer thermal bluetooth untuk mencetak struk.</p>
+              <div className="flex items-center gap-3">
+                  <button 
+                      onClick={connectPrinter} 
+                      disabled={printerStatus === 'connecting' || printerStatus === 'connected'}
+                      className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 text-white font-bold px-4 py-2 rounded-lg"
+                  >
+                      {printerStatus === 'connecting' ? 'Menghubungkan...' : (printerStatus === 'connected' ? 'Terhubung' : 'Cari & Hubungkan')}
+                  </button>
+                  <div className="flex items-center gap-2 text-sm">
+                      <div className={`w-3 h-3 rounded-full ${printerStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                      <span className="text-slate-300">Status: {printerStatus}</span>
+                  </div>
+              </div>
+          </div>
+
+      </div>
+  );
 
   return (
-    <div className="p-4 md:p-6 h-full overflow-y-auto">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4">
-        <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
-            <span className="bg-purple-500 w-2 md:w-3 h-6 md:h-8 rounded-full"></span>
-            Panel Admin
-        </h2>
-        <div className="flex bg-slate-800 p-1 rounded-xl w-full md:w-auto overflow-x-auto">
-          {(['DASHBOARD', 'INVENTORY', 'AUDIT', 'USERS', 'SYSTEM'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 md:flex-none px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab ? 'bg-white text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'}`}
-            >
-              {tab === 'AUDIT' ? 'AUDIT BAHAN' : (tab === 'INVENTORY' ? 'STOK' : (tab === 'USERS' ? 'OPERATOR' : (tab === 'SYSTEM' ? 'SISTEM' : 'DASBOR')))}
-            </button>
-          ))}
-        </div>
+    <div className="p-4 md:p-6 h-full flex flex-col">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 shrink-0">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
+                <span className="bg-rose-500 w-2 md:w-3 h-6 md:h-8 rounded-full"></span>
+                Panel Admin
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">Laporan penjualan, manajemen stok, dan pengaturan sistem.</p>
+          </div>
+          <div className="flex bg-slate-800 p-1.5 rounded-xl border border-slate-700 w-full md:w-auto">
+              <button onClick={() => setActiveTab('DASHBOARD')} className={`px-4 py-2.5 text-sm font-bold rounded-lg ${activeTab === 'DASHBOARD' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>Dashboard</button>
+              <button onClick={() => setActiveTab('AUDIT')} className={`px-4 py-2.5 text-sm font-bold rounded-lg ${activeTab === 'AUDIT' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>Audit Stok</button>
+              <button onClick={() => setActiveTab('USERS')} className={`px-4 py-2.5 text-sm font-bold rounded-lg ${activeTab === 'USERS' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>Pengguna</button>
+              <button onClick={() => setActiveTab('SYSTEM')} className={`px-4 py-2.5 text-sm font-bold rounded-lg ${activeTab === 'SYSTEM' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>Sistem</button>
+          </div>
       </div>
-
-      {activeTab === 'DASHBOARD' && renderDashboard()}
-      {activeTab === 'INVENTORY' && renderInventory()}
-      {activeTab === 'AUDIT' && renderAudit()}
-      {activeTab === 'USERS' && renderUsers()}
-      {activeTab === 'SYSTEM' && renderSystem()}
+      
+      <div className="flex-1 overflow-y-auto pr-2">
+        {activeTab === 'DASHBOARD' && renderDashboard()}
+        {activeTab === 'AUDIT' && renderAudit()}
+        {activeTab === 'USERS' && renderUsers()}
+        {activeTab === 'SYSTEM' && renderSystem()}
+      </div>
     </div>
   );
 };

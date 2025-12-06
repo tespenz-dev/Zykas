@@ -402,7 +402,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [state, dispatch] = useReducer(appReducer, initialState, loadState);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('IDLE');
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus>('disconnected'); // State untuk printer
-  const firstRender = useRef(true);
+  const stateRef = useRef(state); // Ref to hold latest state for interval
+
+  // Keep ref updated without triggering effects
+  useEffect(() => {
+      stateRef.current = state;
+      // Persist to local storage synchronously (fast enough for local data)
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error("Failed to save state locally:", e);
+      }
+  }, [state]);
 
   // --- Bluetooth Printer Logic ---
   const connectPrinter = async () => {
@@ -435,45 +446,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error: any) {
       console.error("Gagal mencetak struk:", error);
       alert("Gagal mencetak struk: " + (error.message || "Unknown error"));
-      // Optionally disconnect on major print error
-      // printer.disconnect();
-      // setPrinterStatus('disconnected');
     }
   };
   // -----------------------------
 
-
+  // --- Cloud Sync Interval Logic (OPTIMIZED) ---
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.error("Failed to save state:", e);
-    }
-  }, [state]);
+    // Sync every 60 seconds IF a URL is configured.
+    // This is decoupled from 'state' changes to prevent UI lag.
+    const intervalId = setInterval(() => {
+        const currentState = stateRef.current;
+        if (!currentState.settings?.googleScriptUrl) return;
 
-  useEffect(() => {
-    if (firstRender.current) {
-        firstRender.current = false;
-        return;
-    }
-    if (!state.settings?.googleScriptUrl) {
-        setSyncStatus('IDLE');
-        return;
-    }
-    setSyncStatus('PENDING');
-    const timer = setTimeout(() => {
         setSyncStatus('SYNCING');
-        fetch(state.settings.googleScriptUrl!, {
+        fetch(currentState.settings.googleScriptUrl, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(state)
+            body: JSON.stringify(currentState)
         })
         .then(() => setSyncStatus('SUCCESS'))
         .catch(() => setSyncStatus('ERROR'));
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [state]);
+    }, 60000); // 1 minute interval
+
+    return () => clearInterval(intervalId);
+  }, []); // Run once on mount
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncStatus, printerStatus, connectPrinter, printReceipt }}>

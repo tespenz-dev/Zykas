@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory, Transaction } from '../types';
 import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX, ChevronRight } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 import { ReceiptData } from '../utils/printer';
 
-// --- Subcomponents ---
+// --- Subcomponents (Memoized for Performance) ---
 
 const TableCard: React.FC<{ 
   table: BilliardTable; 
@@ -14,12 +14,15 @@ const TableCard: React.FC<{
   onTopUp: (table: BilliardTable) => void;
   onStop: (table: BilliardTable) => void;
   onMove: (table: BilliardTable) => void;
-}> = ({ table, onSelect, onTopUp, onStop, onMove }) => {
+}> = React.memo(({ table, onSelect, onTopUp, onStop, onMove }) => {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (table.status === TableStatus.OCCUPIED && table.startTime) {
+      // Calculate immediately
+      setElapsed(Math.floor((Date.now() - table.startTime) / 1000));
+      
       interval = setInterval(() => {
         const now = Date.now();
         setElapsed(Math.floor((now - table.startTime!) / 1000));
@@ -117,9 +120,19 @@ const TableCard: React.FC<{
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+    // Custom comparison function for performance
+    return (
+        prevProps.table.id === nextProps.table.id &&
+        prevProps.table.status === nextProps.table.status &&
+        prevProps.table.startTime === nextProps.table.startTime &&
+        prevProps.table.durationMinutes === nextProps.table.durationMinutes &&
+        prevProps.table.customerName === nextProps.table.customerName &&
+        prevProps.table.name === nextProps.table.name
+    );
+});
 
-const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }> = ({ product, onClick }) => (
+const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }> = React.memo(({ product, onClick }) => (
   <button 
     onClick={() => onClick(product)}
     className={`p-3 md:p-4 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-left transition-all active:scale-95 flex flex-col justify-between h-36 md:h-40 relative overflow-hidden group w-full ${product.stock === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
@@ -142,7 +155,7 @@ const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }>
         <Coffee size={72} />
     </div>
   </button>
-);
+));
 
 // --- Custom Payment Confirmation Modal ---
 interface PaymentConfirmationModalProps {
@@ -222,14 +235,14 @@ export const MenuView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [activeTableId, setActiveTableId] = useState<number | null>(null);
-  const [isCartOpen, setIsCartOpen] = useState(false); // New state for cart drawer
+  const [isCartOpen, setIsCartOpen] = useState(false);
   
   // Shift Modals
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [startCashInput, setStartCashInput] = useState('');
 
-  // Table Action Modals (Topup & Move only now)
+  // Table Action Modals
   const [showTableModal, setShowTableModal] = useState<'TOPUP' | 'MOVE' | null>(null);
   const [duration, setDuration] = useState(60);
   const [targetTableId, setTargetTableId] = useState<number | null>(null);
@@ -239,8 +252,8 @@ export const MenuView: React.FC = () => {
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
 
 
-  const cartTotal = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const cartCount = state.cart.reduce((a, b) => a + b.quantity, 0);
+  const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
+  const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
   const isShiftActive = !!state.activeShift;
 
   // --- Handlers ---
@@ -293,8 +306,6 @@ export const MenuView: React.FC = () => {
 
   const handleAddToCart = (product: Product) => {
       dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product });
-      // Optional: Auto open cart on first add?
-      // setIsCartOpen(true);
   };
 
   const handleCheckoutInitiate = async () => {
@@ -366,16 +377,16 @@ export const MenuView: React.FC = () => {
       }
   };
 
-  // Filter Logic
-  const filteredProducts = state.products.filter(p => 
+  // Filter Logic (Memoized to prevent recalc on every render)
+  const filteredProducts = useMemo(() => state.products.filter(p => 
       (activeTab === 'ALL' || p.category === activeTab) &&
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      p.category !== ProductCategory.RAW_MATERIAL // Jangan tampilkan bahan baku di menu kasir
-  );
+      p.category !== ProductCategory.RAW_MATERIAL
+  ), [state.products, activeTab, searchTerm]);
 
-  const filteredTables = state.tables.filter(t =>
+  const filteredTables = useMemo(() => state.tables.filter(t =>
       t.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ), [state.tables, searchTerm]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
@@ -492,12 +503,12 @@ export const MenuView: React.FC = () => {
         <>
             {/* Backdrop */}
             <div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
                 onClick={() => setIsCartOpen(false)}
             />
             
             {/* Drawer Panel */}
-            <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out animate-slide-in-right">
+            <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col animate-slide-in-right">
                 
                 {/* Drawer Header */}
                 <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
