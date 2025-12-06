@@ -83,7 +83,7 @@ export const Login: React.FC = () => {
 
             <form onSubmit={handleLogin} className="flex-1 flex flex-col items-center w-full">
               {/* User Selection Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-3 mb-6 w-full max-w-xs md:max-w-none">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-3 w-full max-w-xs md:max-w-none">
                 {state.users.map((user) => (
                     <button
                         key={user.id}
@@ -109,73 +109,75 @@ export const Login: React.FC = () => {
                     </button>
                 ))}
               </div>
-
-              <div className={`w-full max-w-[280px] transition-all duration-300 ${selectedUser ? 'opacity-100 translate-y-0' : 'opacity-50 translate-y-4 grayscale pointer-events-none'}`}>
-                <div className="flex justify-between items-center mb-4">
-                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">PIN Akses</label>
-                     {selectedUser && (
-                         <span className="text-xs text-emerald-400 font-medium animate-pulse">
-                            User: {selectedUser.username}
-                         </span>
-                     )}
-                </div>
-                
-                {/* PIN Display */}
-                <div className="flex justify-center gap-4 mb-6 h-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div 
-                      key={i} 
-                      className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                          i < pin.length 
-                          ? 'bg-emerald-400 scale-125 shadow-[0_0_8px_rgba(52,211,153,0.8)]' 
-                          : 'bg-slate-700'
-                      }`} 
-                    />
-                  ))}
-                </div>
-
-                {/* Numpad */}
-                <div className="grid grid-cols-3 gap-3 w-full select-none">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handleNumPad(num.toString())}
-                      className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
-                    >
-                      {num}
-                    </button>
-                  ))}
-                  <div className="flex items-center justify-center opacity-50"></div>
-                  <button
-                    type="button"
-                    onClick={() => handleNumPad('0')}
-                    className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
-                  >
-                    0
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBackspace}
-                    className="h-12 md:h-14 rounded-lg bg-slate-800/50 hover:bg-rose-900/20 text-rose-500 flex items-center justify-center transition-all active:scale-95 border border-slate-700/50"
-                  >
-                    <Delete size={20} />
-                  </button>
-                </div>
-              </div>
               
-              <div className="mt-auto pt-4 h-6 text-center w-full">
-                 {error && <p className="text-rose-400 text-sm animate-pulse font-medium">{error}</p>}
-              </div>
+              {/* Conditional PIN and Login section */}
+              {selectedUser && (
+                  <div className="w-full flex-1 flex flex-col items-center animate-fade-in mt-6">
+                      <div className="w-full max-w-[280px]">
+                          <div className="flex justify-between items-center mb-4">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">PIN Akses</label>
+                              <span className="text-xs text-emerald-400 font-medium animate-pulse">
+                                User: {selectedUser.username}
+                              </span>
+                          </div>
+                          
+                          <div className="flex justify-center gap-4 mb-6 h-4">
+                              {[...Array(6)].map((_, i) => (
+                                  <div 
+                                      key={i} 
+                                      className={`w-3 h-3 rounded-full transition-all duration-200 ${
+                                          i < pin.length 
+                                          ? 'bg-emerald-400 scale-125 shadow-[0_0_8px_rgba(52,211,153,0.8)]' 
+                                          : 'bg-slate-700'
+                                      }`} 
+                                  />
+                              ))}
+                          </div>
 
-              <button 
-                type="submit" 
-                disabled={!selectedUser || pin.length < 6}
-                className="w-full max-w-[280px] mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-0 disabled:translate-y-4 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <LogIn size={20} />
-                Masuk
-              </button>
+                          <div className="grid grid-cols-3 gap-3 w-full select-none">
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                  <button
+                                      key={num}
+                                      type="button"
+                                      onClick={() => handleNumPad(num.toString())}
+                                      className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
+                                  >
+                                      {num}
+                                  </button>
+                              ))}
+                              <div className="flex items-center justify-center opacity-50"></div>
+                              <button
+                                  type="button"
+                                  onClick={() => handleNumPad('0')}
+                                  className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
+                              >
+                                  0
+                              </button>
+                              <button
+                                  type="button"
+                                  onClick={handleBackspace}
+                                  className="h-12 md:h-14 rounded-lg bg-slate-800/50 hover:bg-rose-900/20 text-rose-500 flex items-center justify-center transition-all active:scale-95 border border-slate-700/50"
+                              >
+                                  <Delete size={20} />
+                              </button>
+                          </div>
+                      </div>
+                      
+                      <div className="mt-auto w-full max-w-[280px] pb-2">
+                          <div className="pt-4 h-6 text-center w-full">
+                              {error && <p className="text-rose-400 text-sm animate-pulse font-medium">{error}</p>}
+                          </div>
+                          <button 
+                              type="submit" 
+                              disabled={pin.length < 6}
+                              className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all duration-300 flex items-center justify-center gap-2"
+                          >
+                              <LogIn size={20} />
+                              Masuk
+                          </button>
+                      </div>
+                  </div>
+              )}
             </form>
         </div>
       </div>
