@@ -130,7 +130,6 @@ export const AdminView: React.FC = () => {
       try {
           const response = await fetch(state.settings.googleScriptUrl, {
               method: 'POST',
-              // Hapus mode: 'no-cors' agar kita bisa membaca respons dari server
               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
               body: JSON.stringify(state)
           });
@@ -148,7 +147,11 @@ export const AdminView: React.FC = () => {
 
       } catch (error) {
           console.error("Upload error:", error);
-          alert(`Gagal mengunggah data: ${(error as Error).message}. Pastikan script sudah di-deploy dengan benar.`);
+          let errorMessage = (error as Error).message;
+          if (errorMessage.includes("Failed to fetch")) {
+              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.\n\nPastikan Anda menggunakan URL yang berakhiran '/exec' dari 'Penerapan Baru', bukan URL '/dev'.";
+          }
+          alert(`Gagal mengunggah data:\n\n${errorMessage}`);
       } finally {
           setSyncAction('idle');
       }
@@ -161,7 +164,8 @@ export const AdminView: React.FC = () => {
       }
 
       if (state.settings.googleScriptUrl.endsWith('/dev')) {
-          alert('PERINGATAN: URL Anda berakhiran "/dev". Ini hanya untuk testing dan sering gagal. Pastikan Anda menggunakan URL dari "Deployment" dengan akses "Anyone".');
+          alert('PERINGATAN: URL Anda berakhiran "/dev". URL ini hanya untuk testing dan TIDAK AKAN BEKERJA. Pastikan Anda menggunakan URL dari "Penerapan baru" (deployment) dengan akses "Siapa saja" (Anyone).');
+          return; // Hentikan eksekusi jika URL adalah /dev
       }
 
       setSyncAction('downloading');
@@ -174,7 +178,6 @@ export const AdminView: React.FC = () => {
           
           const responseText = await response.text();
           
-          // Coba parsing JSON, jika gagal berarti ada masalah di script
           let data: AppState;
           try {
               data = JSON.parse(responseText);
@@ -197,9 +200,9 @@ export const AdminView: React.FC = () => {
           console.error("Download error:", error);
           let errorMessage = (error as Error).message;
           if (errorMessage.includes("Failed to fetch")) {
-              errorMessage += "\n\nIni biasanya karena masalah CORS atau network. Pastikan script di-deploy dengan akses 'Anyone'.";
+              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.\n\nPastikan Anda menggunakan URL yang berakhiran '/exec' dari 'Penerapan Baru', bukan URL '/dev'.";
           }
-          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPastikan:\n1. URL sudah benar.\n2. Script di-deploy dengan akses "Anyone".\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
+          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPastikan:\n1. URL sudah benar & berakhiran '/exec'.\n2. Script di-deploy dengan akses "Siapa saja" (Anyone).\n3. Fungsi doGet() ada dan mengembalikan data JSON.`);
       } finally {
           setSyncAction('idle');
       }

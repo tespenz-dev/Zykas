@@ -13,7 +13,7 @@ const initialState: AppState = {
   transactions: [],
   users: MOCK_USERS,
   settings: {
-    googleScriptUrl: 'https://script.google.com/macros/s/AKfycbxjHWa3u2fEf8gWZjsoNzHqKdVzSYuXpcNUsNwqD5-L_-vZQrZexX7IhQY3MklbsxhbzQ/exec', 
+    googleScriptUrl: 'https://script.google.com/macros/s/AKfycbzsA9JcKJnehbio1ztct3bfFc-nUPi8vQc4GV6uJX2pzq5JsAkXdOfOl6fOEW_SvqGQ/exec', 
     storeName: 'Cue & Brew',
     storeAddress: 'Jl. Contoh No. 123, Kota Fiktif', // Default address
     storePhone: '0812-3456-7890', // Default phone
@@ -461,12 +461,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSyncStatus('SYNCING');
         fetch(currentState.settings.googleScriptUrl, {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'text/plain' },
+            // Hapus 'no-cors' agar kita bisa membaca respons server
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(currentState)
         })
-        .then(() => setSyncStatus('SUCCESS'))
-        .catch(() => setSyncStatus('ERROR'));
+        .then(response => {
+            if (!response.ok) {
+                // Jika server merespon dengan status error (e.g. 4xx, 5xx)
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json(); // Lanjutkan untuk membaca body sebagai JSON
+        })
+        .then(data => {
+            // Jika script Google Anda mengembalikan {status: "success"}
+            if (data && data.status === 'success') {
+                setSyncStatus('SUCCESS');
+            } else {
+                // Jika respons OK tapi konten tidak sesuai
+                throw new Error('Respons dari server tidak valid.');
+            }
+        })
+        .catch((e) => {
+            console.error('Auto-sync failed:', e);
+            setSyncStatus('ERROR');
+        });
     }, 60000); // 1 minute interval
 
     return () => clearInterval(intervalId);
