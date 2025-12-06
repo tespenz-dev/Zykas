@@ -350,12 +350,15 @@ export const MenuView: React.FC = () => {
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
   
-  // State to track orientation, safely initialized.
+  // State to track orientation and client-side mount status
   const [isLandscape, setIsLandscape] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false); // New state to prevent hydration mismatch
 
   useEffect(() => {
-    // This effect runs only on the client side, after the component mounts.
-    // This avoids issues with server-side rendering or build-time errors.
+    // This effect runs only on the client side, after the component has mounted.
+    // This is the key to solving the hydration issue on Vercel.
+    setHasMounted(true); 
+
     const mediaQuery = window.matchMedia('(orientation: landscape)');
     
     const handleOrientationChange = (e: MediaQueryListEvent) => {
@@ -372,7 +375,7 @@ export const MenuView: React.FC = () => {
     return () => {
       mediaQuery.removeEventListener('change', handleOrientationChange);
     };
-  }, []); // Empty dependency array means this runs only once on mount and cleans up on unmount.
+  }, []); // Empty dependency array ensures this runs only once on mount.
 
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
@@ -588,50 +591,57 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
       
-      {/* --- CONDITIONAL CART (JS-DRIVEN) --- */}
-      {isLandscape ? (
-        <div className="flex flex-col w-1/3 xl:w-1/4 bg-slate-900 border-l border-slate-800 shrink-0">
-          <CartPanel
-              customerName={customerName}
-              setCustomerName={setCustomerName}
-              onCheckout={handleCheckoutInitiate}
-          />
-        </div>
-      ) : (
-        <div>
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="fixed right-4 bottom-20 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
-          >
-            <div className="relative">
-                <ShoppingCart size={28} className="group-hover:stroke-2" />
-                {cartCount > 0 && (
-                    <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
-                        {cartCount}
-                    </span>
-                )}
-            </div>
-          </button>
-          
-          {isCartOpen && (
-            <>
-                <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
-                    onClick={() => setIsCartOpen(false)}
-                />
-                <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm flex flex-col animate-slide-in-right">
-                    <CartPanel
-                        customerName={customerName}
-                        setCustomerName={setCustomerName}
-                        onCheckout={handleCheckoutInitiate}
-                        isMobileDrawer={true}
-                        onClose={() => setIsCartOpen(false)}
-                    />
-                </div>
-            </>
-          )}
-        </div>
+      {/* --- CONDITIONAL CART (JS-DRIVEN & HYDRATION-SAFE) --- */}
+      {/* We only render this section after the component has mounted on the client */}
+      {/* This prevents the server from rendering one layout and the client another, causing errors */}
+      {hasMounted && (
+        isLandscape ? (
+          // RENDER LANDSCAPE SIDEBAR
+          <div className="flex flex-col w-1/3 xl:w-1/4 bg-slate-900 border-l border-slate-800 shrink-0">
+            <CartPanel
+                customerName={customerName}
+                setCustomerName={setCustomerName}
+                onCheckout={handleCheckoutInitiate}
+            />
+          </div>
+        ) : (
+          // RENDER PORTRAIT FLOATING BUTTON & DRAWER
+          <div>
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="fixed right-4 bottom-20 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
+            >
+              <div className="relative">
+                  <ShoppingCart size={28} className="group-hover:stroke-2" />
+                  {cartCount > 0 && (
+                      <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
+                          {cartCount}
+                      </span>
+                  )}
+              </div>
+            </button>
+            
+            {isCartOpen && (
+              <>
+                  <div 
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
+                      onClick={() => setIsCartOpen(false)}
+                  />
+                  <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm flex flex-col animate-slide-in-right">
+                      <CartPanel
+                          customerName={customerName}
+                          setCustomerName={setCustomerName}
+                          onCheckout={handleCheckoutInitiate}
+                          isMobileDrawer={true}
+                          onClose={() => setIsCartOpen(false)}
+                      />
+                  </div>
+              </>
+            )}
+          </div>
+        )
       )}
+
 
       {/* --- MODALS --- */}
       {showTableModal && (
