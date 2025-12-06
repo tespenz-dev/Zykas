@@ -1,7 +1,6 @@
-
 // FIX: Corrected React import statement by removing stray 'a,'.
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
-import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem, BilliardTable } from '../types';
+import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
 import { ThermalPrinter, ReceiptData } from '../utils/printer'; // Import ThermalPrinter
 
@@ -170,29 +169,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
           };
         }
 
-        case 'PROCESS_TABLE_TOPUP': {
-            const { table, transaction } = action.payload;
-            if (!table || table.status !== TableStatus.OCCUPIED) {
-                return state;
-            }
-            const topUpCost = table.hourlyRate || BILLIARD_HOURLY_RATE;
-            const topUpDurationMinutes = 60;
-            const updatedShift = state.activeShift
-                ? { ...state.activeShift, totalSales: state.activeShift.totalSales + topUpCost }
-                : state.activeShift;
-            const updatedTables = state.tables.map(t => 
-                t.id === table.id 
-                    ? { ...t, durationMinutes: t.durationMinutes + topUpDurationMinutes }
-                    : t
-            );
-            return {
-                ...state,
-                activeShift: updatedShift,
-                transactions: [transaction, ...state.transactions],
-                tables: updatedTables,
-            };
-        }
-        
         case 'TOPUP_TABLE': {
           const { tableId, duration } = action.payload;
           return {
