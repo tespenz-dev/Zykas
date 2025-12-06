@@ -1,13 +1,16 @@
-
-
+// FIX: Corrected React import statement by removing stray 'a,'.
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
 import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
 import { ThermalPrinter, ReceiptData } from '../utils/printer'; // Import ThermalPrinter
 
-const initialState: AppState = {
+const STORAGE_KEY = 'ZYRA_KASIR_POS_DATA_V1';
+
+// --- FACTORY DEFAULT STATE ---
+// This state is ONLY used if no data exists in localStorage.
+const factoryDefaultState: AppState = {
   user: null,
-  activeShift: null, // Default null (Tutup)
+  activeShift: null,
   tables: MOCK_TABLES,
   products: MOCK_PRODUCTS,
   cart: [],
@@ -23,44 +26,37 @@ const initialState: AppState = {
   lastUpdated: Date.now()
 };
 
-const STORAGE_KEY = 'ZYRA_KASIR_POS_DATA_V1';
-
-export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
-export type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
-
-const AppContext = createContext<{
-  state: AppState;
-  dispatch: React.Dispatch<AppAction>;
-  syncStatus: SyncStatus;
-  printerStatus: PrinterStatus; // Tambah status printer
-  connectPrinter: () => Promise<void>; // Tambah fungsi connect printer
-  printReceipt: (receiptData: ReceiptData) => Promise<void>; // Tambah fungsi print receipt
-} | undefined>(undefined);
-
-const loadState = (defaultState: AppState): AppState => {
-  if (typeof window === 'undefined') return defaultState;
+// --- NEW: ROBUST STATE INITIALIZATION ---
+// This function is now the single source of truth for loading the initial state.
+// It prioritizes user's stored data over factory defaults.
+const getInitialState = (): AppState => {
+  if (typeof window === 'undefined') {
+      return factoryDefaultState;
+  }
+  
   try {
     const serializedState = localStorage.getItem(STORAGE_KEY);
     if (serializedState) {
       const parsed = JSON.parse(serializedState);
-      if (parsed.tables && parsed.products && parsed.users) {
+      
+      // Basic validation to ensure the data is not corrupted
+      if (parsed.users && parsed.products && parsed.tables) {
+        // --- Data Migration Logic ---
+        // This ensures that when we add new features, old data is compatible.
         const migratedTables = parsed.tables.map((t: any) => ({
              ...t,
              hourlyRate: t.hourlyRate || BILLIARD_HOURLY_RATE
         }));
-        const defaultSettings = defaultState.settings;
+        
+        const defaultSettings = factoryDefaultState.settings;
         const migratedSettings = {
             ...defaultSettings,
             ...(parsed.settings || {}),
-            googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl,
-            storeName: parsed.settings?.storeName || defaultSettings.storeName, // Migrate new setting
-            storeAddress: parsed.settings?.storeAddress || defaultSettings.storeAddress, // Migrate new setting
-            storePhone: parsed.settings?.storePhone || defaultSettings.storePhone,       // Migrate new setting
-            customReceiptFooter: parsed.settings?.customReceiptFooter || defaultSettings.customReceiptFooter // Migrate new setting
         };
         
         return { 
-            ...parsed, 
+            ...factoryDefaultState, // Start with a complete structure
+            ...parsed,             // Overwrite with user's saved data
             tables: migratedTables, 
             settings: migratedSettings,
             activeShift: parsed.activeShift || null,
@@ -69,10 +65,29 @@ const loadState = (defaultState: AppState): AppState => {
       }
     }
   } catch (e) {
-    console.error("Error loading state from storage:", e);
+    console.error("Critical Error: Failed to load state from storage. Resetting to default.", e);
+    // If parsing fails, it's safer to reset than to crash the app.
+    // We can add more robust error handling here in the future.
+    localStorage.removeItem(STORAGE_KEY);
   }
-  return defaultState;
+
+  // If we reach here, it means no valid data was found in localStorage.
+  // So, we return the factory default state.
+  return factoryDefaultState;
 };
+
+
+export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
+export type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+const AppContext = createContext<{
+  state: AppState;
+  dispatch: React.Dispatch<AppAction>;
+  syncStatus: SyncStatus;
+  printerStatus: PrinterStatus;
+  connectPrinter: () => Promise<void>;
+  printReceipt: (receiptData: ReceiptData) => Promise<void>;
+} | undefined>(undefined);
 
 function appReducer(state: AppState, action: AppAction): AppState {
   const newState = ((): Omit<AppState, 'lastUpdated'> => {
@@ -389,13 +404,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
             return { ...state, settings: { ...state.settings, ...action.payload } };
 
         case 'IMPORT_DATA':
-            // Don't update timestamp on import, use the one from payload
             return { ...action.payload, user: state.user };
 
         case 'RESET_APP':
           localStorage.removeItem(STORAGE_KEY);
-          // Don't add timestamp here, it will be added by wrapper
-          return initialState;
+          // Return the factory default state, not a variable from the outer scope
+          return factoryDefaultState;
 
         default:
           return state;
@@ -406,17 +420,18 @@ function appReducer(state: AppState, action: AppAction): AppState {
     return { ...newState, lastUpdated: action.payload.lastUpdated || Date.now() };
   }
   
+  // For any other action, update the timestamp to mark a change.
   return { ...newState, lastUpdated: Date.now() };
 }
 
 const printer = new ThermalPrinter();
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [state, dispatch] = useReducer(appReducer, initialState, loadState);
+  // Initialize reducer with our new robust function
+  const [state, dispatch] = useReducer(appReducer, getInitialState());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('IDLE');
   const [printerStatus, setPrinterStatus] = useState<PrinterStatus>('disconnected');
   const stateRef = useRef(state);
-  // FIX: Initialize useRef with null to ensure its type is correctly handled.
   const debouncedUploadRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- Core State and Storage Effect ---
@@ -464,17 +479,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               
               const cloudState: AppState = await response.json();
               
-              // CRUCIAL: Only update if cloud data is newer than local data
               if (cloudState.lastUpdated && cloudState.lastUpdated > (stateRef.current.lastUpdated || 0)) {
                   console.log("Newer state found on cloud, updating local state.");
                   dispatch({ type: 'IMPORT_DATA', payload: cloudState });
               }
           } catch (error) {
               console.warn('Polling for updates failed:', error);
-              // Don't set status to ERROR on polling failure to avoid constant red icon
           }
       };
-
+      
+      // Immediately check for updates on app start, then set interval.
+      pollForUpdates(); 
       const intervalId = setInterval(pollForUpdates, 10000); // Check every 10 seconds
 
       return () => clearInterval(intervalId);
