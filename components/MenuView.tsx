@@ -349,6 +349,20 @@ export const MenuView: React.FC = () => {
 
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
+  
+  const [isLandscape, setIsLandscape] = useState(
+    window.matchMedia('(orientation: landscape)').matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(orientation: landscape)');
+    const handleOrientationChange = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+    mediaQuery.addEventListener('change', handleOrientationChange);
+    setIsLandscape(mediaQuery.matches); // Initial check
+    return () => {
+      mediaQuery.removeEventListener('change', handleOrientationChange);
+    };
+  }, []);
 
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
@@ -564,17 +578,17 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
       
-      {/* --- LANDSCAPE Cart Sidebar (Right side) --- */}
-      <div className="hidden landscape:flex flex-col w-1/3 lg:w-96 bg-slate-900 border-l border-slate-800 shrink-0">
+      {/* --- CONDITIONAL CART (JS-DRIVEN) --- */}
+      {isLandscape ? (
+        <div className="flex flex-col w-1/3 lg:w-96 bg-slate-900 border-l border-slate-800 shrink-0">
           <CartPanel
               customerName={customerName}
               setCustomerName={setCustomerName}
               onCheckout={handleCheckoutInitiate}
           />
-      </div>
-
-      {/* --- PORTRAIT Floating Button and Drawer --- */}
-      <div className="landscape:hidden">
+        </div>
+      ) : (
+        <div>
           <button
             onClick={() => setIsCartOpen(true)}
             className="fixed right-4 bottom-20 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
@@ -606,7 +620,8 @@ export const MenuView: React.FC = () => {
                 </div>
             </>
           )}
-      </div>
+        </div>
+      )}
 
       {/* --- MODALS --- */}
       {showTableModal && (
