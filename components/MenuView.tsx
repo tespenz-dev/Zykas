@@ -478,7 +478,7 @@ export const MenuView: React.FC = () => {
   ), [state.tables, searchTerm]);
 
   return (
-    <div className="flex h-full overflow-hidden relative">
+    <div className="flex h-full overflow-hidden">
       
       {/* --- Main Content Area (Left Side) --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
@@ -565,7 +565,7 @@ export const MenuView: React.FC = () => {
       </div>
       
       {/* --- Desktop Cart Sidebar (Right side) --- */}
-      <div className="hidden md:flex flex-col w-96 bg-slate-900 border-l border-slate-800 shrink-0">
+      <div className="hidden md:flex flex-col md:w-1/3 lg:w-1/4 xl:w-96 bg-slate-900 border-l border-slate-800 shrink-0">
           <CartPanel
               customerName={customerName}
               setCustomerName={setCustomerName}
