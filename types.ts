@@ -106,7 +106,7 @@ export type AppAction =
   | { type: 'TOPUP_TABLE'; payload: { tableId: number; duration: number } }
   | { type: 'MOVE_TABLE'; payload: { fromId: number; toId: number } }
   | { type: 'ADD_PRODUCT_TO_CART'; payload: Product }
-  | { type: 'ADD_TABLE_TO_CART'; payload: BilliardTable }
+  | { type: 'ADD_TABLE_TO_CART'; payload: { table: BilliardTable; quantity?: number } }
   | { type: 'REMOVE_FROM_CART'; payload: string } 
   | { type: 'CLEAR_CART' }
   | { type: 'CHECKOUT'; payload: { total: number; cashierName: string; customerName: string } }

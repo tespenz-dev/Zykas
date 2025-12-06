@@ -1,3 +1,4 @@
+
 // FIX: Corrected React import statement by removing stray 'a,'.
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
 import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem } from '../types';
@@ -170,6 +171,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
 
         case 'TOPUP_TABLE': {
+          // This legacy action is kept for compatibility but should ideally go through cart -> checkout
           const { tableId, duration } = action.payload;
           return {
             ...state,
@@ -225,18 +227,19 @@ function appReducer(state: AppState, action: AppAction): AppState {
         }
 
         case 'ADD_TABLE_TO_CART': {
-          const table = action.payload;
+          const { table, quantity } = action.payload;
           if (!table || !table.id) return state;
 
           const tableItemId = `table-${table.id}`;
           const existingItem = state.cart.find(item => item.itemId === tableItemId);
           const rate = table.hourlyRate || BILLIARD_HOURLY_RATE;
+          const addQty = quantity || 1;
 
           let newCart;
           if (existingItem) {
             newCart = state.cart.map(item => 
               item.itemId === tableItemId
-                ? { ...item, quantity: item.quantity + 1 }
+                ? { ...item, quantity: item.quantity + addQty }
                 : item
             );
           } else {
@@ -245,7 +248,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
               itemType: 'BILLIARD',
               name: `Sewa ${table.name}`, 
               price: rate, 
-              quantity: 1, 
+              quantity: addQty, 
               tableId: table.id
             }];
           }
@@ -304,11 +307,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
             const cartItem = state.cart.find(c => c.itemType === 'BILLIARD' && c.tableId === t.id);
             if (cartItem) {
               if (t.status === TableStatus.OCCUPIED) {
+                // If table is ALREADY occupied, extends the duration (Top Up logic triggered by payment)
                 return {
                   ...t,
                   durationMinutes: t.durationMinutes + (cartItem.quantity * 60)
                 };
               } else {
+                // If table is AVAILABLE, starts new session
                 return {
                   ...t,
                   status: TableStatus.OCCUPIED,

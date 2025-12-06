@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BilliardTable, Product, TableStatus, ProductCategory, Transaction } from '../types';
-import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX, ChevronRight } from 'lucide-react';
+import { PlusCircle, Search, ShoppingCart, Plus, X, Square, Wallet, Lock, Unlock, User, CheckCircle, ArrowRightLeft, Coffee, Monitor, CircleCheck, CircleX, ChevronRight, Trash2 } from 'lucide-react';
 import { BILLIARD_HOURLY_RATE } from '../constants';
 import { ReceiptData } from '../utils/printer';
 
@@ -235,7 +235,6 @@ export const MenuView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [activeTableId, setActiveTableId] = useState<number | null>(null);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   
   // Shift Modals
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
@@ -251,6 +250,8 @@ export const MenuView: React.FC = () => {
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
 
+  // State for mobile cart visibility toggling
+  const [mobileCartVisible, setMobileCartVisible] = useState(false);
 
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
@@ -290,10 +291,20 @@ export const MenuView: React.FC = () => {
       if (!activeTableId) return;
 
       if (showTableModal === 'TOPUP') {
-          dispatch({ 
-              type: 'TOPUP_TABLE', 
-              payload: { tableId: activeTableId, duration } 
-          });
+          // MODIFIED LOGIC: Top Up now adds to cart as a transaction
+          const table = state.tables.find(t => t.id === activeTableId);
+          if (table) {
+              const hours = duration / 60;
+              dispatch({ 
+                  type: 'ADD_TABLE_TO_CART', 
+                  payload: { 
+                      table: table, 
+                      quantity: hours 
+                  } 
+              });
+              // Open cart to show the addition
+              setMobileCartVisible(true);
+          }
       } else if (showTableModal === 'MOVE') {
           if (!targetTableId) return;
           dispatch({ 
@@ -363,7 +374,6 @@ export const MenuView: React.FC = () => {
       } 
     });
     setCustomerName('');
-    setIsCartOpen(false);
 
     // After state is dispatched, try to print.
     try {
@@ -386,10 +396,112 @@ export const MenuView: React.FC = () => {
       t.name.toLowerCase().includes(searchTerm.toLowerCase())
   ), [state.tables, searchTerm]);
 
+  const CartPanel = () => (
+    <div className="flex flex-col h-full bg-slate-900 border-l border-slate-800 shadow-xl w-full">
+         {/* Drawer Header */}
+         <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+            <div className="flex items-center gap-2 text-emerald-400">
+                <ShoppingCart size={24} />
+                <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
+            </div>
+            {/* Show close button only on mobile when it acts as a modal/drawer */}
+            <div className="md:hidden">
+                <button 
+                    onClick={() => setMobileCartVisible(false)}
+                    className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                >
+                    <ChevronRight size={24} />
+                </button>
+            </div>
+        </div>
+
+        {/* Operator Info */}
+        <div className="px-4 pt-4">
+            <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
+                        <User size={20} />
+                    </div>
+                    <div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
+                        <div className="text-white font-bold text-sm">{state.user?.name}</div>
+                    </div>
+                </div>
+                <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
+            </div>
+            
+            <div className="mt-4">
+                <input 
+                    type="text" 
+                    placeholder="Nama Pelanggan (Wajib untuk Meja)"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-4 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                />
+            </div>
+        </div>
+
+        {/* Cart Items List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {state.cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
+                    <Coffee size={48} className="opacity-20" />
+                    <p className="text-sm">Keranjang kosong</p>
+                </div>
+            ) : (
+                state.cart.map((item, idx) => (
+                    <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all animate-fade-in">
+                        <div className="flex-1 min-w-0 pr-2">
+                            <div className="text-white font-medium text-sm truncate">{item.name}</div>
+                            <div className="text-xs text-slate-500">
+                                {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-emerald-400 font-bold text-sm">
+                                Rp {(item.price * item.quantity).toLocaleString()}
+                            </div>
+                            <button 
+                                onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
+                                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 text-slate-500 flex items-center justify-center transition-colors"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
+            <div className="flex justify-between items-center mb-4">
+                <span className="text-slate-400 font-medium">Total Tagihan</span>
+                <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
+            </div>
+            
+            <button 
+                onClick={handleCheckoutInitiate} 
+                disabled={!isShiftActive || state.cart.length === 0}
+                className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
+                    !isShiftActive 
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : state.cart.length === 0 
+                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
+                }`}
+            >
+                {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
+                {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
+            </button>
+        </div>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full overflow-hidden relative">
+    <div className="flex h-full overflow-hidden relative">
       
-      {/* --- Main Content: Menu Grid (Full Width) --- */}
+      {/* --- Main Content (Left Column) --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
         {/* Header & Tabs */}
@@ -441,16 +553,30 @@ export const MenuView: React.FC = () => {
                  </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative max-w-2xl">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                <input 
-                    type="text" 
-                    placeholder="Cari meja atau menu..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner text-sm"
-                />
+            {/* Search Bar & Mobile Cart Toggle */}
+            <div className="flex gap-2">
+                <div className="relative flex-1 max-w-2xl">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                    <input 
+                        type="text" 
+                        placeholder="Cari meja atau menu..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner text-sm"
+                    />
+                </div>
+                {/* Mobile-only Cart Button */}
+                <button 
+                    className="md:hidden bg-slate-800 p-3 rounded-2xl text-emerald-400 relative"
+                    onClick={() => setMobileCartVisible(true)}
+                >
+                    <ShoppingCart size={24} />
+                    {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900">
+                            {cartCount}
+                        </span>
+                    )}
+                </button>
             </div>
         </div>
 
@@ -458,12 +584,12 @@ export const MenuView: React.FC = () => {
         <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-0 pb-20 scrollbar-hide touch-pan-y">
             {activeTab === 'BILLIARD' ? (
                 // Responsive Grid: 1 col (mobile), 2 (tablet), 3 (small desktop), 4 (large desktop)
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 pb-24">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4 pb-24">
                     {filteredTables.map(table => (
                         <TableCard 
                             key={table.id} 
                             table={table} 
-                            onSelect={(t) => dispatch({ type: 'ADD_TABLE_TO_CART', payload: t })}
+                            onSelect={(t) => dispatch({ type: 'ADD_TABLE_TO_CART', payload: { table: t } })}
                             onTopUp={() => handleTableAction(table, 'TOPUP')}
                             onStop={(t) => dispatch({ type: 'STOP_TABLE', payload: { tableId: t.id } })}
                             onMove={() => handleTableAction(table, 'MOVE')}
@@ -472,7 +598,7 @@ export const MenuView: React.FC = () => {
                 </div>
             ) : (
                 // Responsive Grid: 2 cols (mobile), 3 (tablet), 4 (small desktop), 5/6 (large desktop)
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-24">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-24">
                     {filteredProducts.map(product => (
                         <ProductCard key={product.id} product={product} onClick={handleAddToCart} />
                     ))}
@@ -481,130 +607,23 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
 
-      {/* --- FLOATING CART BUTTON (Right Middle) --- */}
-      <button
-        onClick={() => setIsCartOpen(true)}
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
-      >
-        <div className="relative">
-            <ShoppingCart size={28} className="group-hover:stroke-2" />
-            {cartCount > 0 && (
-                <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
-                    {cartCount}
-                </span>
-            )}
-        </div>
-      </button>
+      {/* --- Right Column: Cart (Desktop: Split View, Mobile: Overlay) --- */}
+      
+      {/* Desktop Permanent Sidebar */}
+      <div className="hidden md:flex w-80 lg:w-96 xl:w-[400px] shrink-0">
+          <CartPanel />
+      </div>
 
-      {/* --- SLIDE-OVER CART DRAWER --- */}
-      {isCartOpen && (
-        <>
-            {/* Backdrop */}
-            <div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
-                onClick={() => setIsCartOpen(false)}
-            />
-            
-            {/* Drawer Panel */}
-            <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col animate-slide-in-right">
-                
-                {/* Drawer Header */}
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                    <div className="flex items-center gap-2 text-emerald-400">
-                        <ShoppingCart size={24} />
-                        <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
-                    </div>
-                    <button 
-                        onClick={() => setIsCartOpen(false)}
-                        className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                    >
-                        <ChevronRight size={24} />
-                    </button>
-                </div>
-
-                {/* Operator Info */}
-                <div className="px-4 pt-4">
-                    <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
-                                <User size={20} />
-                            </div>
-                            <div>
-                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
-                                <div className="text-white font-bold text-sm">{state.user?.name}</div>
-                            </div>
-                        </div>
-                        <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
-                    </div>
-                    
-                    <div className="mt-4">
-                        <input 
-                            type="text" 
-                            placeholder="Nama Pelanggan (Wajib untuk Meja)"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-4 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
-                        />
-                    </div>
-                </div>
-
-                {/* Cart Items List */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {state.cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
-                            <Coffee size={48} className="opacity-20" />
-                            <p className="text-sm">Keranjang kosong</p>
-                        </div>
-                    ) : (
-                        state.cart.map((item, idx) => (
-                            <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all">
-                                <div>
-                                    <div className="text-white font-medium text-sm line-clamp-1">{item.name}</div>
-                                    <div className="text-xs text-slate-500">
-                                        {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="text-emerald-400 font-bold text-sm">
-                                        Rp {(item.price * item.quantity).toLocaleString()}
-                                    </div>
-                                    <button 
-                                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
-                                        className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 text-slate-500 flex items-center justify-center transition-colors"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                {/* Footer Actions */}
-                <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
-                    <div className="flex justify-between items-center mb-4">
-                        <span className="text-slate-400 font-medium">Total Tagihan</span>
-                        <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
-                    </div>
-                    
-                    <button 
-                        onClick={handleCheckoutInitiate} 
-                        disabled={!isShiftActive || state.cart.length === 0}
-                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
-                            !isShiftActive 
-                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                            : state.cart.length === 0 
-                                ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
-                        }`}
-                    >
-                        {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
-                        {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
-                    </button>
-                </div>
+      {/* Mobile Drawer Overlay */}
+      {mobileCartVisible && (
+        <div className="fixed inset-0 z-50 md:hidden flex justify-end">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileCartVisible(false)} />
+            <div className="relative w-full max-w-sm h-full animate-slide-in-right">
+                <CartPanel />
             </div>
-        </>
+        </div>
       )}
+
 
       {/* --- MODALS --- */}
 
@@ -632,6 +651,9 @@ export const MenuView: React.FC = () => {
                               onChange={(e) => setDuration(parseInt(e.target.value))}
                               className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-emerald-500 outline-none text-center font-bold"
                           />
+                          <p className="text-xs text-amber-500 mt-2">
+                             *Waktu akan ditambahkan ke tagihan (Cart) dan baru aktif setelah checkout.
+                          </p>
                       </div>
                   )}
 
