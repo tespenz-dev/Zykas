@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -514,7 +516,7 @@ export const AdminView: React.FC = () => {
               </p>
               <p className="text-xs text-slate-500 italic flex items-center gap-2 mb-4">
                   {renderCloudStatusIcon()}
-                  Status Auto-Sync: {getCloudStatusText()}. Backup otomatis berjalan setiap 1 menit di tab aktif.
+                  Status Auto-Sync: {getCloudStatusText()}. Sinkronisasi otomatis berjalan secara real-time setiap ada perubahan data.
               </p>
               <div className="relative mb-2">
                   <input type="text" value={scriptUrl} onChange={e => setScriptUrl(e.target.value)} className="w-full bg-slate-800 p-3 pl-4 pr-12 rounded-lg text-white border border-slate-600 focus:ring-emerald-500 focus:border-emerald-500" placeholder="https://script.google.com/.../exec" />

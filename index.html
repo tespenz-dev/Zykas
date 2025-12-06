@@ -5,6 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>ZYRA KASIR</title>
+    <!-- Apple-specific meta tags for native feel -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <!-- Tailwind CSS via CDN is okay for simple usage -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -21,9 +25,10 @@
         border-radius: 3px;
       }
       
-      /* Global Smooth Scrolling for iOS */
+      /* Global Smooth Scrolling & Touch Behavior for iOS */
       * {
         -webkit-overflow-scrolling: touch;
+        -webkit-tap-highlight-color: transparent; /* Remove grey tap highlight on iOS */
       }
 
       body {
