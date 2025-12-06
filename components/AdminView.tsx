@@ -135,6 +135,13 @@ export const AdminView: React.FC = () => {
           });
 
           if (!response.ok) {
+              if (response.status === 401 || response.status === 403) {
+                  throw new Error(`Otorisasi Gagal (Error ${response.status}). INI MASALAH UTAMA.\n\nPeriksa kembali setting deployment:\n- 'Jalankan sebagai' HARUS 'Saya (Me)'.\n- 'Siapa yang memiliki akses' HARUS 'Siapa saja'.`);
+              }
+              const contentType = response.headers.get("content-type");
+              if (contentType && contentType.indexOf("text/html") !== -1) {
+                  throw new Error("Gagal: Script mengembalikan halaman HTML. Ini biasanya halaman error Google. Pastikan setting 'Jalankan sebagai' adalah 'Saya (Me)'.");
+              }
               throw new Error(`Server merespon dengan status: ${response.status}`);
           }
 
@@ -147,11 +154,7 @@ export const AdminView: React.FC = () => {
 
       } catch (error) {
           console.error("Upload error:", error);
-          let errorMessage = (error as Error).message;
-          if (errorMessage.includes("Failed to fetch")) {
-              errorMessage = "Koneksi ke server gagal. Kemungkinan besar karena masalah otorisasi atau CORS.";
-          }
-          alert(`Gagal mengunggah data:\n\n${errorMessage}\n\nPastikan pengaturan deployment di Google Script sudah benar:\n1. Jalankan sebagai: SAYA (ME)\n2. Siapa yang memiliki akses: SIAPA SAJA (ANYONE)`);
+          alert(`Gagal mengunggah data:\n\n${(error as Error).message}`);
       } finally {
           setSyncAction('idle');
       }
@@ -163,19 +166,17 @@ export const AdminView: React.FC = () => {
           return;
       }
 
-      if (state.settings.googleScriptUrl.endsWith('/dev')) {
-          alert('PERINGATAN: URL Anda berakhiran "/dev". URL ini hanya untuk testing dan TIDAK AKAN BEKERJA. Pastikan Anda menggunakan URL dari "Penerapan baru" (deployment) dengan akses "Siapa saja" (Anyone).');
-          return; // Hentikan eksekusi jika URL adalah /dev
-      }
-
       setSyncAction('downloading');
       try {
           const response = await fetch(state.settings.googleScriptUrl);
 
           if (!response.ok) {
-              // Jika muncul error 401 Unauthorized atau 403 Forbidden, kemungkinan besar masalahnya ada di 'Execute as'
               if (response.status === 401 || response.status === 403) {
-                  throw new Error(`Otorisasi Gagal (Error ${response.status}). Script mungkin dijalankan sebagai 'Pengguna' bukan sebagai 'Saya'.`);
+                  throw new Error(`Otorisasi Gagal (Error ${response.status}). INI MASALAH UTAMA.\n\nPeriksa kembali setting deployment:\n- 'Jalankan sebagai' HARUS 'Saya (Me)'.\n- 'Siapa yang memiliki akses' HARUS 'Siapa saja'.`);
+              }
+              const contentType = response.headers.get("content-type");
+              if (contentType && contentType.indexOf("text/html") !== -1) {
+                  throw new Error("Gagal: Script mengembalikan halaman HTML, bukan data JSON. Ini biasanya halaman login Google. Pastikan setting 'Siapa yang memiliki akses' adalah 'Siapa saja' (Anyone).");
               }
               throw new Error(`Server merespon dengan status: ${response.status} ${response.statusText}`);
           }
@@ -202,11 +203,7 @@ export const AdminView: React.FC = () => {
 
       } catch (error) {
           console.error("Download error:", error);
-          let errorMessage = (error as Error).message;
-          if (errorMessage.includes("Failed to fetch")) {
-              errorMessage = "Koneksi ke server gagal. Ini biasanya karena masalah CORS atau network.";
-          }
-          alert(`Gagal mengambil data dari cloud:\n\n${errorMessage}\n\nPASTIKAN PENGATURAN DEPLOYMENT SUDAH BENAR:\n\n1. Jalankan sebagai: SAYA (ME)\n2. Siapa yang memiliki akses: SIAPA SAJA (ANYONE)`);
+          alert(`Gagal mengambil data dari cloud:\n\n${(error as Error).message}`);
       } finally {
           setSyncAction('idle');
       }
