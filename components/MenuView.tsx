@@ -329,52 +329,50 @@ export const MenuView: React.FC = () => {
   };
 
   const handleConfirmPayment = async () => {
-    setShowPaymentConfirmModal(false); // Tutup modal konfirmasi
-      const newTransactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const newTransactionDate = new Date().toISOString();
-      const newTransactionTimestamp = Date.now();
+    setShowPaymentConfirmModal(false); // Close confirmation modal
+    
+    // Create a temporary transaction object for printing, as the state update is async.
+    const transactionToPrint: Transaction = {
+        id: `TX-${Date.now()}`,
+        date: new Date().toISOString(),
+        timestamp: Date.now(),
+        total: cartTotal,
+        type: 'MIXED',
+        details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
+        cashierName: state.user?.name || 'Unknown',
+        customerName: customerName || 'Pelanggan Umum'
+    };
+    
+    const receiptData: ReceiptData = {
+        transaction: transactionToPrint,
+        cart: [...state.cart],
+        storeName: state.settings.storeName || 'ZYRA KASIR',
+        storeAddress: state.settings.storeAddress,
+        storePhone: state.settings.storePhone,
+        customReceiptFooter: state.settings.customReceiptFooter,
+        cashierName: state.user?.name || 'Unknown',
+    };
 
-      // Buat objek transaksi yang akan dicetak
-      const transactionToPrint: Transaction = {
-          id: newTransactionId,
-          date: newTransactionDate,
-          timestamp: newTransactionTimestamp,
-          total: cartTotal,
-          type: 'MIXED', // Asumsi selalu mixed kalau dari cart
-          details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
-          cashierName: state.user?.name || 'Unknown',
-          customerName: customerName || 'Pelanggan Umum'
-      };
+    // Dispatch checkout action to update state
+    dispatch({ 
+      type: 'CHECKOUT', 
+      payload: { 
+        total: cartTotal, 
+        cashierName: state.user?.name || 'Unknown',
+        customerName: customerName
+      } 
+    });
+    setCustomerName('');
+    setIsCartOpen(false);
 
-      // Dispatch action CHECKOUT ke reducer
-      dispatch({ 
-        type: 'CHECKOUT', 
-        payload: { 
-          total: cartTotal, 
-          cashierName: state.user?.name || 'Unknown',
-          customerName: customerName
-        } 
-      });
-      setCustomerName(''); // Reset customer name after successful checkout
-      setIsCartOpen(false); // Close cart drawer
-
-      // Setelah dispatch, panggil fungsi printReceipt
-      try {
-          // UPDATE: Include storeAddress, storePhone, and customReceiptFooter from global state
-          await printReceipt({
-              transaction: transactionToPrint,
-              cart: state.cart, // Gunakan cart yang saat ini ada
-              storeName: state.settings?.storeName || 'Cue & Brew',
-              storeAddress: state.settings?.storeAddress,
-              storePhone: state.settings?.storePhone,
-              customReceiptFooter: state.settings?.customReceiptFooter,
-              cashierName: state.user?.name || 'Unknown',
-          });
-          setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
-      } catch (error) {
-          console.error("Gagal mencetak struk:", error);
-          setPaymentStatusModal({ type: 'error', title: 'Gagal Mencetak Struk', message: "Transaksi berhasil, namun gagal mencetak struk: " + (error as Error).message });
-      }
+    // After state is dispatched, try to print.
+    try {
+        await printReceipt(receiptData);
+        setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
+    } catch (error) {
+        console.error("Gagal mencetak struk:", error);
+        setPaymentStatusModal({ type: 'error', title: 'Gagal Cetak', message: `Transaksi berhasil, tapi struk gagal dicetak: ${(error as Error).message}` });
+    }
   };
 
   // Filter Logic (Memoized to prevent recalc on every render)

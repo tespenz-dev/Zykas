@@ -1,7 +1,8 @@
 
 // utils/printer.ts
 
-import { CartItem, Transaction, ProductCategory } from '../types'; // Jalur impor diperbaiki
+import { CartItem, Transaction } from '../types';
+import { STORE_LOGO_BASE64 } from '../constants';
 
 export interface ReceiptData {
   transaction: Transaction;
@@ -19,84 +20,53 @@ export class ThermalPrinter {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private characteristic: BluetoothRemoteGATTCharacteristic | null = null;
-  // Make SERVICE_UUID and CHARACTERISTIC_UUID readonly and initialize them in the constructor.
-  private readonly SERVICE_UUID: string;
-  private readonly CHARACTERISTIC_UUID: string;
+  private readonly SERVICE_UUID: string = '000018f0-0000-1000-8000-00805f9b34fb';
+  private readonly textEncoder = new TextEncoder();
 
   // ESC/POS Commands
   private readonly ESC = '\x1B';
   private readonly GS = '\x1D';
-
-  // Text formatting
+  
+  private readonly CMD_INIT = this.ESC + '@';
   private readonly TEXT_ALIGN_LEFT = this.ESC + 'a' + '\x00';
   private readonly TEXT_ALIGN_CENTER = this.ESC + 'a' + '\x01';
   private readonly TEXT_ALIGN_RIGHT = this.ESC + 'a' + '\x02';
   private readonly TEXT_NORMAL = this.ESC + '\x21' + '\x00';
-  private readonly TEXT_DOUBLE_HEIGHT = this.ESC + '\x21' + '\x10';
-  private readonly TEXT_DOUBLE_WIDTH = this.ESC + '\x21' + '\x20';
   private readonly TEXT_DOUBLE_HW = this.ESC + '\x21' + '\x30';
   private readonly BOLD_ON = this.ESC + 'E' + '\x01';
   private readonly BOLD_OFF = this.ESC + 'E' + '\x00';
-  private readonly UNDERLINE_ON = this.ESC + '-' + '\x01';
-  private readonly UNDERLINE_OFF = this.ESC + '-' + '\x00';
-  private readonly CUT_FULL = this.GS + 'V' + '\x00';
   private readonly CUT_PARTIAL = this.GS + 'V' + '\x01';
   private readonly FEED_LINES = (lines: number) => this.ESC + 'd' + String.fromCharCode(lines);
-
-  constructor() {
-    // A basic heuristic to try and find common printer characteristic UUIDs
-    const commonSerialServiceUUIDs = [
-      '000018f0-0000-1000-8000-00805f9b34fb', // Serial Port Service (SPP-like)
-      '0000ff00-0000-1000-8000-00805f9b34fb', // Usually used by HM-10/11 modules (custom)
-      '49535343-fe7d-4ae5-8fa9-9fbd34fb',     // Specific to some printers like Dymo or custom
-      '0000180a-0000-1000-8000-00805f9b34fb', // Device Information Service (not for data, but can be present)
-    ];
-
-    this.SERVICE_UUID = commonSerialServiceUUIDs[0];
-    this.CHARACTERISTIC_UUID = '00002a01-0000-1000-8000-00805f9b34fb';
-  }
 
   public async connect(): Promise<boolean> {
     try {
       this.device = await navigator.bluetooth.requestDevice({
         filters: [{ services: [this.SERVICE_UUID] }],
-        optionalServices: [this.SERVICE_UUID], // Make sure it's discoverable
+        optionalServices: [this.SERVICE_UUID],
       });
 
-      if (!this.device || !this.device.gatt) {
-        throw new Error('No Bluetooth device selected or GATT server not available.');
-      }
-
+      if (!this.device || !this.device.gatt) throw new Error('GATT server not available.');
+      
       this.server = await this.device.gatt.connect();
       const service = await this.server.getPrimaryService(this.SERVICE_UUID);
-
-      // Try to find a characteristic that allows writing (TX)
       const characteristics = await service.getCharacteristics();
-      for (const char of characteristics) {
-        if (char.properties.write || char.properties.writeWithoutResponse) {
-          this.characteristic = char;
-          break;
-        }
-      }
 
-      if (!this.characteristic) {
-        throw new Error('No writable characteristic found for printer.');
-      }
+      this.characteristic = characteristics.find(c => c.properties.write || c.properties.writeWithoutResponse) || null;
+
+      if (!this.characteristic) throw new Error('No writable characteristic found.');
 
       this.device.addEventListener('gattserverdisconnected', this.onDisconnected);
       console.log('Connected to printer:', this.device.name);
       return true;
     } catch (error) {
       console.error('Bluetooth connection failed:', error);
-      this.disconnect(); // Ensure clean state
+      this.disconnect();
       throw error;
     }
   }
 
   public async disconnect() {
-    if (this.device?.gatt?.connected) {
-      await this.device.gatt.disconnect();
-    }
+    this.device?.gatt?.disconnect();
     this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected);
     this.device = null;
     this.server = null;
@@ -106,10 +76,7 @@ export class ThermalPrinter {
 
   private onDisconnected = () => {
     console.log('Printer GATT server disconnected.');
-    this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected);
-    this.device = null;
-    this.server = null;
-    this.characteristic = null;
+    this.disconnect();
   };
 
   public isConnected(): boolean {
@@ -117,14 +84,15 @@ export class ThermalPrinter {
   }
 
   private async write(data: Uint8Array) {
-    if (!this.characteristic) {
-      throw new Error('Printer not connected or characteristic not found.');
+    if (!this.characteristic) throw new Error('Printer not connected.');
+    // Split data into chunks to avoid exceeding BLE MTU size limits
+    const chunkSize = 100; 
+    for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        await this.characteristic.writeValueWithoutResponse(chunk);
     }
-    await this.characteristic.writeValueWithoutResponse(data);
   }
-
-  private textEncoder = new TextEncoder();
-
+  
   private sendCommand(command: string) {
     return this.write(this.textEncoder.encode(command));
   }
@@ -135,30 +103,98 @@ export class ThermalPrinter {
   }
 
   private async printDivider() {
-    await this.printLine('-'.repeat(32)); // Adjust for printer width
+    await this.printLine('-'.repeat(32));
+  }
+
+  /**
+   * Converts a base64 image to ESC/POS raster format and prints it.
+   * @param base64Image The base64 encoded image string (e.g., from constants).
+   * @param maxWidth The maximum width of the printer in dots (usually 384 for 58mm paper).
+   */
+  public async printImage(base64Image: string, maxWidth: number = 384): Promise<void> {
+    if (!base64Image) return;
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = async () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d', { willReadFrequently: true });
+                if (!context) return reject('Could not get canvas context');
+
+                // Scale image to fit printer width
+                const aspectRatio = img.width / img.height;
+                const width = maxWidth;
+                const height = Math.round(width / aspectRatio);
+                canvas.width = width;
+                canvas.height = height;
+                context.drawImage(img, 0, 0, width, height);
+
+                const imageData = context.getImageData(0, 0, width, height);
+                const data = imageData.data;
+                const dots = new Uint8Array(width * height);
+
+                // Convert to monochrome (black/white)
+                for (let i = 0; i < data.length; i += 4) {
+                    const luminance = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    dots[i / 4] = luminance < 128 ? 1 : 0; // 1 for black, 0 for white
+                }
+
+                // Pack monochrome data into bytes for the printer
+                const bytes = new Uint8Array(width * Math.ceil(height / 8));
+                let byteIndex = 0;
+                for (let x = 0; x < width; x++) {
+                    for (let y = 0; y < height; y += 8) {
+                        let slice = 0;
+                        for (let bit = 0; bit < 8; bit++) {
+                            slice <<= 1;
+                            if (y + bit < height && dots[(y + bit) * width + x] === 1) {
+                                slice |= 1;
+                            }
+                        }
+                        bytes[byteIndex++] = slice;
+                    }
+                }
+                
+                // Send raster image command
+                await this.sendCommand(this.TEXT_ALIGN_CENTER);
+                const commandHeader = new Uint8Array([0x1D, 0x76, 0x30, 0x00, width % 256, Math.floor(width / 256), Math.ceil(height/8) % 256, Math.floor(Math.ceil(height/8) / 256)]);
+                const fullCommand = new Uint8Array([...commandHeader, ...bytes]);
+                await this.write(fullCommand);
+                resolve();
+
+            } catch (e) {
+                reject(e);
+            }
+        };
+        img.onerror = (e) => reject(`Failed to load image: ${e}`);
+        img.src = base64Image;
+    });
   }
 
   public async printReceipt(data: ReceiptData) {
-    if (!this.isConnected()) {
-      throw new Error('Printer not connected.');
-    }
-
+    if (!this.isConnected()) throw new Error('Printer not connected.');
+    
     const { transaction, cart, storeName, storeAddress, storePhone, cashierName, customReceiptFooter } = data;
     const now = new Date(transaction.timestamp);
 
     try {
-      // Initialize printer
-      await this.sendCommand(this.ESC + '@'); // Initialize printer
-      await this.sendCommand(this.TEXT_NORMAL);
-      await this.sendCommand(this.TEXT_ALIGN_CENTER);
+      await this.sendCommand(this.CMD_INIT);
+      
+      // Print Logo
+      if (STORE_LOGO_BASE64) {
+        await this.printImage(STORE_LOGO_BASE64);
+        await this.sendCommand(this.FEED_LINES(1));
+      }
 
       // Header
+      await this.sendCommand(this.TEXT_ALIGN_CENTER);
       await this.sendCommand(this.TEXT_DOUBLE_HW);
       await this.printLine(storeName);
       await this.sendCommand(this.TEXT_NORMAL);
       if (storeAddress) await this.printLine(storeAddress);
       if (storePhone) await this.printLine(storePhone);
-      await this.printLine(); // Empty line for spacing
+      await this.printLine();
 
       // Transaction Info
       await this.sendCommand(this.TEXT_ALIGN_LEFT);
@@ -169,18 +205,17 @@ export class ThermalPrinter {
         await this.printLine(`Pelanggan: ${transaction.customerName}`);
       }
       await this.printDivider();
-
-      // Cart Items
-      // Max width 32 characters
-      // Item (14) Qty (4) Harga (6) Subtotal (8)
+      
+      // Cart Items Header
       await this.printLine(this.BOLD_ON + 'Item          Qty  Harga   Subtotal' + this.BOLD_OFF);
       await this.printDivider();
-
+      
+      // Cart Items
       for (const item of cart) {
-        const itemName = item.name.substring(0, 14).padEnd(14); // Truncate and pad
+        const itemName = item.name.substring(0, 14).padEnd(14);
         const qty = item.quantity.toString().padEnd(4);
-        const price = (item.price).toLocaleString('id-ID').padStart(6); // Full price, pad
-        const subtotal = (item.price * item.quantity).toLocaleString('id-ID').padStart(8); // Full subtotal, pad
+        const price = item.price.toLocaleString('id-ID').padStart(6);
+        const subtotal = (item.price * item.quantity).toLocaleString('id-ID').padStart(8);
         await this.printLine(`${itemName} ${qty} ${price} ${subtotal}`);
       }
       await this.printDivider();
@@ -192,15 +227,11 @@ export class ThermalPrinter {
       await this.sendCommand(this.BOLD_OFF);
       await this.printLine();
 
-      // Footer Message
+      // Footer
       await this.sendCommand(this.TEXT_ALIGN_CENTER);
       await this.printLine('Terima kasih atas kunjungan Anda!');
-      await this.printLine('Sampai jumpa kembali!');
-      if (customReceiptFooter) {
-        await this.printLine(customReceiptFooter);
-      }
-      await this.printLine();
-
+      if (customReceiptFooter) await this.printLine(customReceiptFooter);
+      
       // Feed and Cut
       await this.sendCommand(this.FEED_LINES(5));
       await this.sendCommand(this.CUT_PARTIAL);
@@ -212,4 +243,3 @@ export class ThermalPrinter {
     }
   }
 }
-    
