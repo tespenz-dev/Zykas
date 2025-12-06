@@ -48,7 +48,7 @@ const MainLayout: React.FC = () => {
         </div>
         
         {/* View Content */}
-        <div className="flex-1 overflow-hidden h-full flex flex-col w-full">
+        <div className="flex-1 h-full flex flex-col w-full">
             {renderView()}
         </div>
       </main>
