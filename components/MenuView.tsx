@@ -350,19 +350,29 @@ export const MenuView: React.FC = () => {
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
   
-  const [isLandscape, setIsLandscape] = useState(
-    window.matchMedia('(orientation: landscape)').matches
-  );
+  // State to track orientation, safely initialized.
+  const [isLandscape, setIsLandscape] = useState(false);
 
   useEffect(() => {
+    // This effect runs only on the client side, after the component mounts.
+    // This avoids issues with server-side rendering or build-time errors.
     const mediaQuery = window.matchMedia('(orientation: landscape)');
-    const handleOrientationChange = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+    
+    const handleOrientationChange = (e: MediaQueryListEvent) => {
+      setIsLandscape(e.matches);
+    };
+
+    // Set the initial state correctly for the current environment
+    setIsLandscape(mediaQuery.matches);
+
+    // Listen for future changes
     mediaQuery.addEventListener('change', handleOrientationChange);
-    setIsLandscape(mediaQuery.matches); // Initial check
+
+    // Cleanup function to remove the listener when the component unmounts
     return () => {
       mediaQuery.removeEventListener('change', handleOrientationChange);
     };
-  }, []);
+  }, []); // Empty dependency array means this runs only once on mount and cleans up on unmount.
 
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
@@ -580,7 +590,7 @@ export const MenuView: React.FC = () => {
       
       {/* --- CONDITIONAL CART (JS-DRIVEN) --- */}
       {isLandscape ? (
-        <div className="flex flex-col w-1/3 lg:w-96 bg-slate-900 border-l border-slate-800 shrink-0">
+        <div className="flex flex-col w-1/3 xl:w-1/4 bg-slate-900 border-l border-slate-800 shrink-0">
           <CartPanel
               customerName={customerName}
               setCustomerName={setCustomerName}
