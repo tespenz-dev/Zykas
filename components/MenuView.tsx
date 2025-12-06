@@ -240,6 +240,7 @@ export const MenuView: React.FC = () => {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [startCashInput, setStartCashInput] = useState('');
+  const [selectedShiftOperatorId, setSelectedShiftOperatorId] = useState('');
 
   // Table Action Modals
   const [showTableModal, setShowTableModal] = useState<'TOPUP' | 'MOVE' | null>(null);
@@ -257,22 +258,35 @@ export const MenuView: React.FC = () => {
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
   const isShiftActive = !!state.activeShift;
 
+  // Initialize selected operator when modal opens
+  useEffect(() => {
+    if (isShiftModalOpen && state.users.length > 0 && !selectedShiftOperatorId) {
+      setSelectedShiftOperatorId(state.users[0].id);
+    }
+  }, [isShiftModalOpen, state.users, selectedShiftOperatorId]);
+
   // --- Handlers ---
 
   const handleOpenShift = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!startCashInput) return;
-      
-      dispatch({ 
-          type: 'OPEN_SHIFT', 
-          payload: {
-              startCash: parseInt(startCashInput),
-              cashierId: state.user?.id || 'unknown',
-              cashierName: state.user?.name || 'Unknown'
-          }
-      });
-      setIsShiftModalOpen(false);
-      setStartCashInput('');
+    e.preventDefault();
+    const selectedOperator = state.users.find(u => u.id === selectedShiftOperatorId);
+
+    if (!startCashInput || !selectedOperator) {
+      alert("Pastikan operator dipilih dan modal awal diisi.");
+      return;
+    }
+    
+    dispatch({ 
+        type: 'OPEN_SHIFT', 
+        payload: {
+            startCash: parseInt(startCashInput),
+            cashierId: selectedOperator.id,
+            cashierName: selectedOperator.name
+        }
+    });
+    setIsShiftModalOpen(false);
+    setStartCashInput('');
+    setSelectedShiftOperatorId('');
   };
 
   const handleCloseShift = () => {
@@ -342,6 +356,12 @@ export const MenuView: React.FC = () => {
   const handleConfirmPayment = async () => {
     setShowPaymentConfirmModal(false); // Close confirmation modal
     
+    // Safety check for active shift
+    if (!state.activeShift) {
+        setPaymentStatusModal({ type: 'error', title: 'Shift Tidak Aktif', message: 'Tidak bisa checkout karena tidak ada shift yang aktif.' });
+        return;
+    }
+    
     // Create a temporary transaction object for printing, as the state update is async.
     const transactionToPrint: Transaction = {
         id: `TX-${Date.now()}`,
@@ -350,7 +370,8 @@ export const MenuView: React.FC = () => {
         total: cartTotal,
         type: 'MIXED',
         details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
-        cashierName: state.user?.name || 'Unknown',
+        // CRITICAL: Use cashier name from the active shift
+        cashierName: state.activeShift.cashierName,
         customerName: customerName || 'Pelanggan Umum'
     };
     
@@ -361,7 +382,8 @@ export const MenuView: React.FC = () => {
         storeAddress: state.settings.storeAddress,
         storePhone: state.settings.storePhone,
         customReceiptFooter: state.settings.customReceiptFooter,
-        cashierName: state.user?.name || 'Unknown',
+        // CRITICAL: Use cashier name from the active shift for the receipt
+        cashierName: state.activeShift.cashierName,
     };
 
     // Dispatch checkout action to update state
@@ -369,7 +391,8 @@ export const MenuView: React.FC = () => {
       type: 'CHECKOUT', 
       payload: { 
         total: cartTotal, 
-        cashierName: state.user?.name || 'Unknown',
+        // Note: The reducer will ignore this and use the shift's cashier name, but we pass it for consistency.
+        cashierName: state.activeShift.cashierName,
         customerName: customerName
       } 
     });
@@ -423,8 +446,12 @@ export const MenuView: React.FC = () => {
                         <User size={20} />
                     </div>
                     <div>
-                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
-                        <div className="text-white font-bold text-sm">{state.user?.name}</div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                           {isShiftActive ? 'PENANGGUNG JAWAB SHIFT' : 'Operator Login'}
+                        </div>
+                        <div className="text-white font-bold text-sm">
+                           {isShiftActive ? state.activeShift.cashierName : state.user?.name}
+                        </div>
                     </div>
                 </div>
                 <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
@@ -684,31 +711,52 @@ export const MenuView: React.FC = () => {
       {/* 2. Modal BUKA KASIR (Open Shift) */}
       {isShiftModalOpen && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
-              <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center">
-                  <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Wallet size={32} />
+              <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Wallet size={32} />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Buka Kasir</h2>
+                    <p className="text-slate-400 text-sm mb-6">Pilih operator dan masukkan modal awal.</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Buka Kasir</h2>
-                  <p className="text-slate-400 text-sm mb-6">Masukkan jumlah uang modal awal di laci kasir.</p>
                   
-                  <form onSubmit={handleOpenShift}>
-                      <div className="relative mb-6">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
-                          <input 
-                              type="number" 
-                              required
-                              value={startCashInput}
-                              onChange={(e) => setStartCashInput(e.target.value)}
-                              className="w-full bg-slate-800 border border-slate-600 rounded-2xl py-4 pl-12 pr-4 text-2xl font-bold text-white text-center focus:ring-2 focus:ring-emerald-500 outline-none"
-                              placeholder="0"
-                              autoFocus
-                          />
+                  <form onSubmit={handleOpenShift} className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-2 text-center">Pilih Operator Shift</label>
+                        <select
+                           value={selectedShiftOperatorId}
+                           onChange={(e) => setSelectedShiftOperatorId(e.target.value)}
+                           className="w-full bg-slate-800 border border-slate-600 rounded-xl py-3 px-4 text-white font-bold text-center appearance-none focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                            {state.users.map(user => (
+                                <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
+                            ))}
+                        </select>
                       </div>
-                      <button type="submit" className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/30 transition-all">
-                          Buka Shift Sekarang
-                      </button>
+                      
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-2 text-center">Modal Awal</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">Rp</span>
+                            <input 
+                                type="number" 
+                                required
+                                value={startCashInput}
+                                onChange={(e) => setStartCashInput(e.target.value)}
+                                className="w-full bg-slate-800 border border-slate-600 rounded-xl py-4 pl-12 pr-4 text-2xl font-bold text-white text-center focus:ring-2 focus:ring-emerald-500 outline-none"
+                                placeholder="0"
+                                autoFocus
+                            />
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <button type="submit" className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-900/30 transition-all">
+                            Buka Shift Sekarang
+                        </button>
+                      </div>
                   </form>
-                  <button onClick={() => setIsShiftModalOpen(false)} className="mt-4 text-slate-500 text-sm hover:text-white">Batal</button>
+                  <button onClick={() => setIsShiftModalOpen(false)} className="mt-4 text-slate-500 text-sm hover:text-white w-full">Batal</button>
               </div>
           </div>
       )}

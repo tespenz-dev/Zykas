@@ -137,7 +137,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         case 'STOP_TABLE': {
           const { tableId } = action.payload;
           const table = state.tables.find(t => t.id === tableId);
-          if (!table || !table.startTime) return state;
+          if (!table || !table.startTime || !state.activeShift) return state; // Safety check for active shift
 
           const rate = table.hourlyRate || BILLIARD_HOURLY_RATE;
           const now = Date.now();
@@ -152,14 +152,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
             total: totalCost,
             type: 'BILLIARD',
             details: `Sewa ${table.name} - Selesai (${durationMinutes} menit)`,
-            cashierName: state.user?.name || 'Unknown',
+            // CRITICAL: Use the name from the active shift, not the logged-in user
+            cashierName: state.activeShift.cashierName,
             customerName: table.customerName
           };
 
-          // Update total penjualan di shift aktif jika ada
-          const updatedShift = state.activeShift 
-              ? { ...state.activeShift, totalSales: state.activeShift.totalSales + totalCost } 
-              : state.activeShift;
+          // Update total penjualan di shift aktif
+          const updatedShift = { ...state.activeShift, totalSales: state.activeShift.totalSales + totalCost };
 
           return {
             ...state,
@@ -266,7 +265,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
           return { ...state, cart: [] };
 
         case 'CHECKOUT': {
-          const { total, cashierName, customerName } = action.payload;
+          const { total, customerName } = action.payload;
+          if (!state.activeShift) return state; // Safety check
+
           const txId = `TX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
           
           const newTransaction: Transaction = {
@@ -276,7 +277,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
             total: total,
             type: 'MIXED',
             details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
-            cashierName: cashierName,
+            // CRITICAL: Use the name from the active shift, not from the payload or logged-in user
+            cashierName: state.activeShift.cashierName,
             customerName: customerName || 'Pelanggan Umum'
           };
           
@@ -330,9 +332,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
           });
 
           // Update total penjualan di shift aktif
-          const updatedShift = state.activeShift 
-              ? { ...state.activeShift, totalSales: state.activeShift.totalSales + total } 
-              : state.activeShift;
+          const updatedShift = { ...state.activeShift, totalSales: state.activeShift.totalSales + total };
 
           return {
             ...state,
