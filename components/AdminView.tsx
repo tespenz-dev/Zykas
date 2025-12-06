@@ -1,6 +1,7 @@
 
 
 
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';

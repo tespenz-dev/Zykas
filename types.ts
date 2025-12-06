@@ -93,6 +93,7 @@ export interface AppState {
   transactions: Transaction[];
   users: User[]; // List of all users (for admin)
   settings: AppSettings;
+  lastUpdated?: number; // Timestamp of the last state change for real-time sync
 }
 
 export type AppAction =
