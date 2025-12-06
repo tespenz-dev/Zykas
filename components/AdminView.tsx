@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -88,7 +89,7 @@ export const AdminView: React.FC = () => {
           if (parsedData.users && parsedData.products && parsedData.tables) {
             if (confirm('Apakah Anda yakin ingin me-restore data ini? Data saat ini akan tertimpa.')) {
                 // Save to localStorage directly
-                localStorage.setItem('CUE_BREW_POS_DATA_V3', content);
+                localStorage.setItem('ZYRA_KASIR_POS_DATA_V1', content);
                 alert('Data berhasil dipulihkan! Halaman akan dimuat ulang.');
                 window.location.reload();
             }

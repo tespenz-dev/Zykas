@@ -1,6 +1,6 @@
 {
   "name": "ZYRA KASIR",
-  "description": "Sistem Point of Sales modern untuk usaha Billiard dan Cafe dengan manajemen meja, inventaris, dan laporan.",
+  "description": "Sistem Point of Sales ZYRA KASIR, modern dan handal untuk berbagai jenis usaha.",
   "requestFramePermissions": [
     "bluetooth"
   ]

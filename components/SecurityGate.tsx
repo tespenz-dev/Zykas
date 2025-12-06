@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Lock, ChevronRight, QrCode, Smartphone } from 'lucide-react';
 import { GOOGLE_AUTH_SECRET } from '../constants';
@@ -15,7 +16,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
 
   // Setup TOTP Generator
   const totp = new OTPAuth.TOTP({
-    issuer: "CueBrewPOS",
+    issuer: "ZYRAKASIR",
     label: "AdminAccess",
     algorithm: "SHA1",
     digits: 6,
@@ -110,7 +111,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
                     <ol className="text-xs text-slate-400 space-y-3 list-decimal pl-4">
                         <li>Install <strong>Google Authenticator</strong> di HP Anda.</li>
                         <li>Buka App &rarr; Tekan <strong>(+)</strong> &rarr; <strong>Enter a setup key</strong> (Masukkan kunci penyiapan).</li>
-                        <li>Account name: <span className="text-white font-bold">Zykas POS</span></li>
+                        <li>Account name: <span className="text-white font-bold">ZYRA KASIR</span></li>
                         <li>Your key (Kunci Anda): 
                             <div className="mt-1 p-2 bg-slate-900 border border-slate-700 rounded text-emerald-400 font-mono font-bold text-center select-all tracking-widest break-all">
                                 {GOOGLE_AUTH_SECRET}

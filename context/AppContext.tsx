@@ -14,14 +14,14 @@ const initialState: AppState = {
   users: MOCK_USERS,
   settings: {
     googleScriptUrl: 'https://script.google.com/macros/s/AKfycbzcv_DIzZLa8iNN1a4dwaZSK9XzKi_LAClLLyQOlGt0505OSPOcQJK_rQBpp7_7mfuXOQ/exec', 
-    storeName: 'Cue & Brew',
+    storeName: 'ZYRA KASIR',
     storeAddress: 'Jl. Contoh No. 123, Kota Fiktif', // Default address
     storePhone: '0812-3456-7890', // Default phone
-    customReceiptFooter: 'Password WiFi: CUEBREW2024' // Default custom footer
+    customReceiptFooter: 'Terima Kasih!' // Default custom footer
   }
 };
 
-const STORAGE_KEY = 'CUE_BREW_POS_DATA_V3';
+const STORAGE_KEY = 'ZYRA_KASIR_POS_DATA_V1';
 
 export type SyncStatus = 'IDLE' | 'PENDING' | 'SYNCING' | 'SUCCESS' | 'ERROR';
 export type PrinterStatus = 'disconnected' | 'connecting' | 'connected' | 'error';

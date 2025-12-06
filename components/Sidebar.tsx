@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Role } from '../types';
@@ -53,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
       {/* Brand Icon */}
       <div className="hidden md:block mb-8">
         <div className="w-12 h-12 bg-gradient-to-tr from-emerald-400 to-cyan-500 rounded-xl shadow-lg shadow-emerald-900/50 flex items-center justify-center text-slate-900 font-bold text-xl">
-            C&B
+            ZK
         </div>
       </div>
 

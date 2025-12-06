@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Delete, User as UserIcon, LogIn, Shield, Store } from 'lucide-react';
@@ -59,7 +60,7 @@ export const Login: React.FC = () => {
           </div>
           
           <div className="z-10">
-            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">Cue & Brew</h1>
+            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">ZYRA KASIR</h1>
             <p className="text-slate-400">Sistem Kasir Profesional</p>
           </div>
 
@@ -75,14 +76,14 @@ export const Login: React.FC = () => {
           </div>
 
           <div className="z-10 text-xs text-slate-600">
-             © 2024 Cue & Brew POS. Versi 2.1 (Stabil)
+             © 2024 ZYRA KASIR. Versi 1.0
           </div>
         </div>
 
         {/* Right Side: Login Form */}
         <div className="p-6 md:p-8 flex flex-col bg-slate-900 w-full">
             <div className="md:hidden mb-6 text-center">
-                <h1 className="text-2xl font-bold text-white">Cue & Brew</h1>
+                <h1 className="text-2xl font-bold text-white">ZYRA KASIR</h1>
             </div>
 
             <div className="mb-6 text-center">
