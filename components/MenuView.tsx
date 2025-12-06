@@ -251,9 +251,6 @@ export const MenuView: React.FC = () => {
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
 
-  // State for mobile cart visibility toggling
-  const [mobileCartVisible, setMobileCartVisible] = useState(false);
-
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
   const isShiftActive = !!state.activeShift;
@@ -305,7 +302,6 @@ export const MenuView: React.FC = () => {
       if (!activeTableId) return;
 
       if (showTableModal === 'TOPUP') {
-          // MODIFIED LOGIC: Top Up now adds to cart as a transaction
           const table = state.tables.find(t => t.id === activeTableId);
           if (table) {
               const hours = duration / 60;
@@ -316,8 +312,6 @@ export const MenuView: React.FC = () => {
                       quantity: hours 
                   } 
               });
-              // Open cart to show the addition
-              setMobileCartVisible(true);
           }
       } else if (showTableModal === 'MOVE') {
           if (!targetTableId) return;
@@ -343,7 +337,6 @@ export const MenuView: React.FC = () => {
         return;
     }
     
-    // Check if customer name is needed (if billiard item exists)
     const hasBilliard = state.cart.some(i => i.itemType === 'BILLIARD');
     if (hasBilliard && !customerName.trim()) {
        setPaymentStatusModal({ type: 'error', title: 'Nama Pelanggan Wajib', message: 'Nama Pelanggan wajib diisi untuk sewa meja.' });
@@ -354,15 +347,13 @@ export const MenuView: React.FC = () => {
   };
 
   const handleConfirmPayment = async () => {
-    setShowPaymentConfirmModal(false); // Close confirmation modal
+    setShowPaymentConfirmModal(false);
     
-    // Safety check for active shift
     if (!state.activeShift) {
         setPaymentStatusModal({ type: 'error', title: 'Shift Tidak Aktif', message: 'Tidak bisa checkout karena tidak ada shift yang aktif.' });
         return;
     }
     
-    // Create a temporary transaction object for printing, as the state update is async.
     const transactionToPrint: Transaction = {
         id: `TX-${Date.now()}`,
         date: new Date().toISOString(),
@@ -370,7 +361,6 @@ export const MenuView: React.FC = () => {
         total: cartTotal,
         type: 'MIXED',
         details: state.cart.map(item => `${item.name} (x${item.quantity})`).join(', '),
-        // CRITICAL: Use cashier name from the active shift
         cashierName: state.activeShift.cashierName,
         customerName: customerName || 'Pelanggan Umum'
     };
@@ -382,23 +372,19 @@ export const MenuView: React.FC = () => {
         storeAddress: state.settings.storeAddress,
         storePhone: state.settings.storePhone,
         customReceiptFooter: state.settings.customReceiptFooter,
-        // CRITICAL: Use cashier name from the active shift for the receipt
         cashierName: state.activeShift.cashierName,
     };
 
-    // Dispatch checkout action to update state
     dispatch({ 
       type: 'CHECKOUT', 
       payload: { 
         total: cartTotal, 
-        // Note: The reducer will ignore this and use the shift's cashier name, but we pass it for consistency.
         cashierName: state.activeShift.cashierName,
         customerName: customerName
       } 
     });
     setCustomerName('');
 
-    // After state is dispatched, try to print.
     try {
         await printReceipt(receiptData);
         setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
@@ -408,7 +394,6 @@ export const MenuView: React.FC = () => {
     }
   };
 
-  // Filter Logic (Memoized to prevent recalc on every render)
   const filteredProducts = useMemo(() => state.products.filter(p => 
       (activeTab === 'ALL' || p.category === activeTab) &&
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -420,25 +405,14 @@ export const MenuView: React.FC = () => {
   ), [state.tables, searchTerm]);
 
   const CartPanel = () => (
-    <div className="flex flex-col h-full bg-slate-900 border-l border-slate-800 shadow-xl w-full">
-         {/* Drawer Header */}
+    <div className="flex flex-col h-full bg-slate-900 shadow-xl w-full">
          <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
             <div className="flex items-center gap-2 text-emerald-400">
                 <ShoppingCart size={24} />
-                <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
-            </div>
-            {/* Show close button only on mobile when it acts as a modal/drawer */}
-            <div className="md:hidden">
-                <button 
-                    onClick={() => setMobileCartVisible(false)}
-                    className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                >
-                    <ChevronRight size={24} />
-                </button>
+                <h2 className="font-bold text-lg">Rincian Pesanan ({cartCount})</h2>
             </div>
         </div>
 
-        {/* Operator Info */}
         <div className="px-4 pt-4">
             <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
                 <div className="flex items-center gap-3">
@@ -468,7 +442,6 @@ export const MenuView: React.FC = () => {
             </div>
         </div>
 
-        {/* Cart Items List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {state.cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
@@ -500,7 +473,6 @@ export const MenuView: React.FC = () => {
             )}
         </div>
 
-        {/* Footer Actions */}
         <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
             <div className="flex justify-between items-center mb-4">
                 <span className="text-slate-400 font-medium">Total Tagihan</span>
@@ -526,16 +498,15 @@ export const MenuView: React.FC = () => {
   );
 
   return (
-    <div className="flex h-full overflow-hidden relative">
+    <div className="flex flex-col md:flex-row h-full overflow-hidden">
       
       {/* --- Main Content (Left Column) --- */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 min-w-0">
         
         {/* Header & Tabs */}
         <div className="p-3 md:p-6 shrink-0 bg-slate-950 z-20 space-y-3 md:space-y-4">
             
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
-                 {/* Tabs (Left) Combined with Cashier Status */}
                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full items-center touch-pan-x">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
@@ -559,7 +530,6 @@ export const MenuView: React.FC = () => {
 
                     <div className="w-px h-6 bg-slate-800 mx-2 shrink-0"></div>
 
-                     {/* KASIR STATUS BUTTON */}
                      {isShiftActive ? (
                          <button 
                             onClick={() => setIsCloseShiftModalOpen(true)}
@@ -579,7 +549,6 @@ export const MenuView: React.FC = () => {
                      )}
                  </div>
                  
-                 {/* NEW: PROMINENT SHIFT INFO DISPLAY */}
                  {isShiftActive && (
                     <div className="bg-emerald-900/50 border border-emerald-500/30 rounded-xl p-2 px-4 flex items-center justify-center gap-3 text-sm shrink-0 w-full xl:w-auto">
                         <User size={18} className="text-emerald-400" />
@@ -591,7 +560,6 @@ export const MenuView: React.FC = () => {
                  )}
             </div>
 
-            {/* Search Bar & Mobile Cart Toggle */}
             <div className="flex gap-2">
                 <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
@@ -603,25 +571,12 @@ export const MenuView: React.FC = () => {
                         className="w-full bg-slate-900 border border-slate-700 rounded-2xl py-3 pl-12 pr-4 text-white focus:ring-2 focus:ring-emerald-500 outline-none shadow-inner text-sm"
                     />
                 </div>
-                {/* Mobile-only Cart Button */}
-                <button 
-                    className="md:hidden bg-slate-800 p-3 rounded-2xl text-emerald-400 relative"
-                    onClick={() => setMobileCartVisible(true)}
-                >
-                    <ShoppingCart size={24} />
-                    {cartCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900">
-                            {cartCount}
-                        </span>
-                    )}
-                </button>
             </div>
         </div>
 
         {/* Grid Content */}
         <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-0 pb-20 scrollbar-hide touch-pan-y">
             {activeTab === 'BILLIARD' ? (
-                // Responsive Grid: 1 col (mobile), 2 (tablet), 3 (small desktop), 4 (large desktop)
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 md:gap-4 pb-24">
                     {filteredTables.map(table => (
                         <TableCard 
@@ -635,7 +590,6 @@ export const MenuView: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                // Responsive Grid: 2 cols (mobile), 3 (tablet), 4 (small desktop), 5/6 (large desktop)
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-24">
                     {filteredProducts.map(product => (
                         <ProductCard key={product.id} product={product} onClick={handleAddToCart} />
@@ -645,27 +599,12 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
 
-      {/* --- Right Column: Cart (Desktop: Split View, Mobile: Overlay) --- */}
-      
-      {/* Desktop Permanent Sidebar */}
-      <div className="hidden md:flex w-80 lg:w-96 xl:w-[400px] shrink-0">
+      {/* --- Right Column: Cart (Always visible) --- */}
+      <div className="w-full md:w-80 lg:w-96 xl:w-[400px] shrink-0 border-t md:border-t-0 md:border-l border-slate-800">
           <CartPanel />
       </div>
 
-      {/* Mobile Drawer Overlay */}
-      {mobileCartVisible && (
-        <div className="fixed inset-0 z-50 md:hidden flex justify-end">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileCartVisible(false)} />
-            <div className="relative w-full max-w-sm h-full animate-slide-in-right">
-                <CartPanel />
-            </div>
-        </div>
-      )}
-
-
       {/* --- MODALS --- */}
-
-      {/* 1. Modal Table Action (Topup/Move) */}
       {showTableModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
@@ -719,7 +658,6 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
-      {/* 2. Modal BUKA KASIR (Open Shift) */}
       {isShiftModalOpen && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
               <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8">
@@ -772,7 +710,6 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
-      {/* 3. Modal TUTUP KASIR (Close Shift) */}
       {isCloseShiftModalOpen && state.activeShift && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
               <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8">
@@ -808,7 +745,6 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
-      {/* 4. Custom Payment Confirmation Modal */}
       {showPaymentConfirmModal && (
           <PaymentConfirmationModal
               total={cartTotal}
@@ -821,7 +757,6 @@ export const MenuView: React.FC = () => {
           />
       )}
 
-      {/* 5. Custom Payment Status Modal (Success/Error) */}
       {paymentStatusModal && (
           <StatusMessageModal
               type={paymentStatusModal.type}
@@ -830,7 +765,6 @@ export const MenuView: React.FC = () => {
               onClose={() => setPaymentStatusModal(null)}
           />
       )}
-
     </div>
   );
 };
