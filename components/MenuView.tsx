@@ -578,6 +578,17 @@ export const MenuView: React.FC = () => {
                          </button>
                      )}
                  </div>
+                 
+                 {/* NEW: PROMINENT SHIFT INFO DISPLAY */}
+                 {isShiftActive && (
+                    <div className="bg-emerald-900/50 border border-emerald-500/30 rounded-xl p-2 px-4 flex items-center justify-center gap-3 text-sm shrink-0 w-full xl:w-auto">
+                        <User size={18} className="text-emerald-400" />
+                        <div>
+                            <div className="text-emerald-500 text-[10px] font-bold">SHIFT AKTIF OLEH</div>
+                            <div className="font-bold text-white -mt-1">{state.activeShift.cashierName}</div>
+                        </div>
+                    </div>
+                 )}
             </div>
 
             {/* Search Bar & Mobile Cart Toggle */}
