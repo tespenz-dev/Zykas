@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -577,7 +579,6 @@ export const AdminView: React.FC = () => {
                   </button>
                   <div className="flex items-center gap-2 text-sm">
                       <div className={`w-3 h-3 rounded-full ${printerStatus === 'connected' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-                      {/* FIX: `printerStatus` is a string, not a function. It should not be called with `()`. */}
                       <span className="text-slate-300">Status: {printerStatus}</span>
                   </div>
               </div>
