@@ -473,14 +473,6 @@ export const MenuView: React.FC = () => {
       {/* --- Main Content Area --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
-        {/* ====================================================================== */}
-        {/* ======================= DEBUG BANNER START ======================= */}
-        <div className="w-full bg-red-600 text-white text-center font-bold p-4 text-xl z-[999] shrink-0">
-            VERSI DEBUG: JIKA ANDA MELIHAT INI, KODE BARU SUDAH AKTIF.
-        </div>
-        {/* ======================== DEBUG BANNER END ======================== */}
-        {/* ====================================================================== */}
-
         {/* Header & Tabs */}
         <div className="p-3 md:p-6 shrink-0 bg-slate-950 z-20 space-y-3 md:space-y-4">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
@@ -562,16 +554,14 @@ export const MenuView: React.FC = () => {
         </div>
       </div>
       
-      {/* --- PERMANENT CART SIDEBAR (Temporarily Disabled for Debugging) --- */}
-      {/* 
-      <div className="flex flex-col w-[360px] shrink-0 bg-slate-900 border-l border-slate-800">
+      {/* --- PERMANENT CART SIDEBAR (Final & Clean Version) --- */}
+      <div className="flex flex-col w-96 shrink-0 bg-slate-900 border-l border-slate-800">
           <CartPanel
               customerName={customerName}
               setCustomerName={setCustomerName}
               onCheckout={handleCheckoutInitiate}
           />
       </div>
-      */}
 
       {/* --- MODALS --- */}
       {showTableModal && (
