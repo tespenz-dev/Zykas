@@ -48,14 +48,14 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
           <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px]"></div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-md relative z-10 my-auto">
-        <div className="flex justify-center mb-8">
-          <div className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 ${error ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-800 text-emerald-400 border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.2)]'}`}>
-            {error ? <Lock size={40} /> : <ShieldCheck size={40} />}
+      <div className="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-2xl w-full max-w-md relative z-10 my-auto">
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center transition-all duration-500 ${error ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-800 text-emerald-400 border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.2)]'}`}>
+            {error ? <Lock size={32} /> : <ShieldCheck size={32} />}
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-white text-center mb-2">Keamanan Toko</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-white text-center mb-2">Keamanan Toko</h1>
         <p className="text-slate-400 text-center mb-8 text-sm">
           Masukkan kode 6-digit dari aplikasi Google Authenticator Anda.
           <br/><span className="text-xs text-slate-500">(Perangkat ini akan diingat)</span>
@@ -64,12 +64,12 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
         <form onSubmit={handleUnlock} className="space-y-6">
           <div className="relative">
             <input
-              type="text" // 'tel' sometimes triggers numpad better on mobile
+              type="tel" 
               inputMode="numeric"
               pattern="[0-9]*"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-              className={`w-full bg-slate-950 text-center text-3xl font-mono tracking-[0.5em] py-4 rounded-xl border-2 outline-none transition-all ${
+              className={`w-full bg-slate-950 text-center text-2xl sm:text-3xl font-mono tracking-[0.3em] sm:tracking-[0.5em] py-3 sm:py-4 rounded-xl border-2 outline-none transition-all ${
                 error 
                 ? 'border-rose-500 text-rose-500 focus:ring-rose-500/50' 
                 : 'border-slate-700 text-white focus:border-emerald-500 focus:shadow-[0_0_20px_rgba(16,185,129,0.1)]'
@@ -82,7 +82,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
           <button
             type="submit"
             disabled={code.length < 6}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 sm:py-4 rounded-xl transition-all shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"
           >
             Buka Toko <ChevronRight size={20} />
           </button>
@@ -123,7 +123,7 @@ export const SecurityGate: React.FC<SecurityGateProps> = ({ onUnlock }) => {
         </div>
       </div>
       
-      <div className="absolute bottom-6 text-slate-600 text-xs font-mono">
+      <div className="absolute bottom-6 text-slate-600 text-xs font-mono px-4 text-center">
          Dilindungi oleh 2FA Time-Based Token
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Delete, User as UserIcon, LogIn, Shield, Store } from 'lucide-react';
@@ -47,8 +48,8 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 md:p-6 lg:p-8 overflow-y-auto">
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-0 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden min-h-[500px] md:min-h-[600px]">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-sm md:max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-0 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden min-h-[90vh] md:min-h-[600px]">
         
         {/* Left Side: Branding (Hidden on small mobile, visible on tablets+) */}
         <div className="hidden md:flex bg-gradient-to-br from-slate-900 to-slate-800 p-8 lg:p-12 flex-col justify-between border-r border-slate-800 relative overflow-hidden">
@@ -79,7 +80,7 @@ export const Login: React.FC = () => {
         </div>
 
         {/* Right Side: Login Form */}
-        <div className="p-6 md:p-8 lg:p-12 flex flex-col bg-slate-900 w-full">
+        <div className="p-6 md:p-8 flex flex-col bg-slate-900 w-full">
             <div className="md:hidden mb-6 text-center">
                 <h1 className="text-2xl font-bold text-white">Cue & Brew</h1>
             </div>
@@ -91,7 +92,7 @@ export const Login: React.FC = () => {
 
             <form onSubmit={handleLogin} className="flex-1 flex flex-col items-center w-full">
               {/* User Selection Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 mb-6 w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-3 mb-6 w-full max-w-xs md:max-w-none">
                 {state.users.map((user) => (
                     <button
                         key={user.id}
@@ -149,7 +150,7 @@ export const Login: React.FC = () => {
                       key={num}
                       type="button"
                       onClick={() => handleNumPad(num.toString())}
-                      className="h-12 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
+                      className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
                     >
                       {num}
                     </button>
@@ -158,21 +159,21 @@ export const Login: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleNumPad('0')}
-                    className="h-12 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
+                    className="h-12 md:h-14 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xl font-bold transition-all active:scale-95 border border-slate-700/50 shadow-sm"
                   >
                     0
                   </button>
                   <button
                     type="button"
                     onClick={handleBackspace}
-                    className="h-12 rounded-lg bg-slate-800/50 hover:bg-rose-900/20 text-rose-500 flex items-center justify-center transition-all active:scale-95 border border-slate-700/50"
+                    className="h-12 md:h-14 rounded-lg bg-slate-800/50 hover:bg-rose-900/20 text-rose-500 flex items-center justify-center transition-all active:scale-95 border border-slate-700/50"
                   >
                     <Delete size={20} />
                   </button>
                 </div>
               </div>
               
-              <div className="mt-4 h-6 text-center w-full">
+              <div className="mt-auto pt-4 h-6 text-center w-full">
                  {error && <p className="text-rose-400 text-sm animate-pulse font-medium">{error}</p>}
               </div>
 
