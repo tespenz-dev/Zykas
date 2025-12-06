@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Product, BilliardTable, ProductCategory, TableStatus, CartItem } from '../types';
 import { ReceiptData } from '../utils/printer';
-import { Coffee, Beer, IceCream, Plus, Trash2, X, ShoppingCart, DollarSign, Printer, User as UserIcon, Minus, Clock } from 'lucide-react';
+import { Coffee, Beer, IceCream, Plus, Trash2, X, ShoppingCart, DollarSign, Printer, User as UserIcon, Clock, Move, Square, Check, ArrowRight } from 'lucide-react';
 
 // --- KOMPONEN MODAL CHECKOUT ---
 const CheckoutModal: React.FC<{
@@ -20,12 +20,10 @@ const CheckoutModal: React.FC<{
   const handleCheckout = async () => {
     const cashierName = state.user?.name || 'Unknown';
     
-    // Kirim data ke reducer
     dispatch({ type: 'CHECKOUT', payload: { total, cashierName, customerName } });
 
-    // Siapkan data untuk struk
     const receiptData: ReceiptData = {
-      transaction: { // Buat objek transaksi sementara untuk dicetak
+      transaction: {
         id: `TX-${Date.now()}`,
         date: new Date().toISOString(),
         timestamp: Date.now(),
@@ -43,11 +41,10 @@ const CheckoutModal: React.FC<{
       cashierName,
     };
 
-    // Cetak struk
     await printReceipt(receiptData);
 
     onClose();
-    setCustomerName(''); // Reset nama pelanggan
+    setCustomerName('');
   };
 
   return (
@@ -90,12 +87,118 @@ const CheckoutModal: React.FC<{
   );
 };
 
+// --- [BARU] KOMPONEN MODAL MANAJEMEN MEJA BILLIARD ---
+const TableManagementModal: React.FC<{
+  table: BilliardTable;
+  onClose: () => void;
+}> = ({ table, onClose }) => {
+    const { state, dispatch } = useApp();
+    const [timeLeft, setTimeLeft] = useState('00:00:00');
+    const [isMoving, setIsMoving] = useState(false);
+
+    useEffect(() => {
+        if (!table.startTime) return;
+
+        const calculateTime = () => {
+            const endTime = table.startTime! + table.durationMinutes * 60 * 1000;
+            const now = Date.now();
+            const diff = endTime - now;
+
+            if (diff <= 0) {
+                setTimeLeft('Waktu Habis');
+                return;
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            setTimeLeft(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+        };
+
+        calculateTime(); // Initial calculation
+        const timerId = setInterval(calculateTime, 1000);
+
+        return () => clearInterval(timerId); // Cleanup on unmount
+    }, [table.startTime, table.durationMinutes]);
+
+    const handleTopUp = () => {
+        dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
+        alert(`${table.name} telah ditambahkan ke keranjang untuk top-up 1 jam. Silakan lanjutkan ke pembayaran.`);
+        onClose();
+    };
+
+    const handleStop = () => {
+        if (confirm(`Apakah Anda yakin ingin menghentikan sesi di ${table.name}?`)) {
+            dispatch({ type: 'STOP_TABLE', payload: { tableId: table.id } });
+            onClose();
+        }
+    };
+    
+    const handleMove = (toId: number) => {
+        if (confirm(`Pindahkan sesi dari ${table.name} ke Meja ${toId}?`)) {
+            dispatch({ type: 'MOVE_TABLE', payload: { fromId: table.id, toId } });
+            onClose();
+        }
+    };
+    
+    const availableTables = state.tables.filter(t => t.status === TableStatus.AVAILABLE && t.id !== table.id);
+
+    return (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 animate-fade-in">
+            <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-850">
+                    <div>
+                        <h3 className="text-lg font-bold text-white">{table.name}</h3>
+                        <p className="text-xs text-slate-400">a/n {table.customerName || 'Pelanggan'}</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={24} /></button>
+                </div>
+
+                <div className="p-6 text-center">
+                    <div className="text-sm text-amber-400">Sisa Waktu</div>
+                    <div className={`text-6xl font-mono font-bold ${timeLeft === 'Waktu Habis' ? 'text-rose-500 animate-pulse' : 'text-white'}`}>
+                        {timeLeft}
+                    </div>
+                </div>
+
+                {isMoving ? (
+                    <div className="p-4 space-y-3 bg-slate-800 border-y border-slate-700">
+                        <h4 className="font-bold text-center text-white">Pilih Meja Tujuan</h4>
+                        <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                            {availableTables.length > 0 ? availableTables.map(t => (
+                                <button key={t.id} onClick={() => handleMove(t.id)} className="p-3 bg-slate-700 hover:bg-emerald-600 rounded-lg text-white">
+                                    {t.name}
+                                </button>
+                            )) : <p className="col-span-3 text-center text-sm text-slate-500">Tidak ada meja kosong.</p>}
+                        </div>
+                        <button onClick={() => setIsMoving(false)} className="w-full text-center text-xs text-slate-400 hover:text-white pt-2">Batal</button>
+                    </div>
+                ) : (
+                    <div className="p-4 bg-slate-800 border-y border-slate-700 grid grid-cols-3 gap-3">
+                        <button onClick={handleTopUp} className="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex flex-col items-center justify-center gap-1">
+                            <Plus size={20}/> <span className="text-xs">Tambah Jam</span>
+                        </button>
+                        <button onClick={handleStop} className="py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold flex flex-col items-center justify-center gap-1">
+                            <Square size={20}/> <span className="text-xs">Stop Manual</span>
+                        </button>
+                        <button onClick={() => setIsMoving(true)} className="py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex flex-col items-center justify-center gap-1">
+                            <Move size={20}/> <span className="text-xs">Pindah Meja</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- KOMPONEN UTAMA MENUVIEW ---
 export const MenuView: React.FC = () => {
   const { state, dispatch } = useApp();
   const [activeTab, setActiveTab] = useState<string>('ALL');
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [activeBilliardTab, setActiveBilliardTab] = useState<'ALL' | 'AVAILABLE' | 'OCCUPIED'>('ALL');
+  const [selectedTable, setSelectedTable] = useState<BilliardTable | null>(null);
 
   const cartTotal = useMemo(() => {
     return state.cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -122,31 +225,24 @@ export const MenuView: React.FC = () => {
       default: return null;
     }
   };
+  
+  const handleTableClick = (table: BilliardTable) => {
+      if (table.status === TableStatus.AVAILABLE) {
+          dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
+      } else {
+          setSelectedTable(table);
+      }
+  };
 
-  const getTimeRemaining = (table: BilliardTable): string => {
+  const getTimeRemainingPreview = (table: BilliardTable): string => {
       if (!table.startTime || table.status !== TableStatus.OCCUPIED) return '';
       const endTime = table.startTime + table.durationMinutes * 60 * 1000;
       const now = Date.now();
       const diff = endTime - now;
-      if (diff <= 0) return 'Waktu Habis';
+      if (diff <= 0) return 'Habis';
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  };
-
-  const handleAddToCart = (item: Product | BilliardTable, type: 'PRODUCT' | 'BILLIARD') => {
-      if (type === 'PRODUCT') {
-          dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: item as Product });
-      } else {
-          // Hanya meja kosong yang bisa ditambah ke keranjang untuk memulai sewa baru
-          const table = item as BilliardTable;
-          if (table.status === TableStatus.AVAILABLE) {
-              dispatch({ type: 'ADD_TABLE_TO_CART', payload: table });
-          } else {
-              // Jika meja sudah terisi, mungkin tambahkan logika top-up di sini jika diperlukan
-              alert(`${table.name} sedang digunakan.`);
-          }
-      }
   };
 
   return (
@@ -155,7 +251,6 @@ export const MenuView: React.FC = () => {
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
         <h2 className="text-2xl md:text-3xl font-bold text-white mb-6">Menu & Meja</h2>
         
-        {/* Tabs Kategori */}
         <div className="flex items-center gap-2 overflow-x-auto w-full scrollbar-hide pb-4 shrink-0">
           <button onClick={() => setActiveTab('ALL')} className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap shadow-sm ${activeTab === 'ALL' ? 'bg-white text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>Semua Menu</button>
           <button onClick={() => setActiveTab('BILLIARD')} className={`px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all whitespace-nowrap shadow-sm ${activeTab === 'BILLIARD' ? 'bg-white text-slate-900' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>Meja Billiard</button>
@@ -164,7 +259,6 @@ export const MenuView: React.FC = () => {
           ))}
         </div>
 
-        {/* Konten Grid */}
         <div className="flex-1">
           {activeTab === 'BILLIARD' ? (
             <div>
@@ -175,11 +269,29 @@ export const MenuView: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredTables.map(table => (
-                      <button key={table.id} onClick={() => handleAddToCart(table, 'BILLIARD')} disabled={table.status === TableStatus.OCCUPIED} className={`group relative p-4 rounded-xl border-2 transition-all text-left ${table.status === TableStatus.AVAILABLE ? 'bg-slate-800 border-slate-700 hover:border-emerald-500 hover:bg-slate-700' : 'bg-rose-900/50 border-rose-500/30 cursor-not-allowed'}`}>
-                        <h3 className="font-bold text-white text-lg">{table.name}</h3>
-                        <p className="text-xs text-slate-400">{table.status === TableStatus.AVAILABLE ? `Rp ${table.hourlyRate.toLocaleString()}/jam` : `a/n ${table.customerName || 'N/A'}`}</p>
+                      <button 
+                        key={table.id} 
+                        onClick={() => handleTableClick(table)}
+                        className={`group relative p-4 rounded-xl border-2 transition-all text-left overflow-hidden ${
+                          table.status === TableStatus.AVAILABLE 
+                            ? 'bg-slate-800 border-slate-700 hover:border-emerald-500 hover:bg-slate-700' 
+                            : 'bg-amber-900/50 border-amber-500/30 cursor-pointer hover:border-amber-400'
+                        }`}
+                      >
                         {table.status === TableStatus.OCCUPIED && (
-                          <div className="absolute bottom-2 right-2 text-xs font-mono bg-slate-900 px-2 py-1 rounded text-amber-400 flex items-center gap-1"><Clock size={12}/>{getTimeRemaining(table)}</div>
+                            <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 to-transparent opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                        )}
+                        <h3 className="font-bold text-white text-lg relative z-10">{table.name}</h3>
+                        <p className="text-xs text-slate-400 relative z-10">
+                          {table.status === TableStatus.AVAILABLE 
+                            ? `Rp ${table.hourlyRate.toLocaleString()}/jam` 
+                            : `a/n ${table.customerName || 'N/A'}`
+                          }
+                        </p>
+                        {table.status === TableStatus.OCCUPIED && (
+                          <div className="absolute bottom-2 right-2 text-xs font-mono bg-slate-900 px-2 py-1 rounded text-amber-400 flex items-center gap-1 z-10 border border-amber-500/20">
+                            <Clock size={12}/>{getTimeRemainingPreview(table)}
+                          </div>
                         )}
                       </button>
                     ))}
@@ -188,7 +300,7 @@ export const MenuView: React.FC = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {filteredProducts.map(product => (
-                <button key={product.id} onClick={() => handleAddToCart(product, 'PRODUCT')} className="group bg-slate-800 p-3 rounded-xl border border-slate-700 text-left hover:bg-slate-700 hover:border-slate-500 transition-all active:scale-95 flex flex-col">
+                <button key={product.id} onClick={() => dispatch({ type: 'ADD_PRODUCT_TO_CART', payload: product })} className="group bg-slate-800 p-3 rounded-xl border border-slate-700 text-left hover:bg-slate-700 hover:border-slate-500 transition-all active:scale-95 flex flex-col">
                   <div className="flex-1">
                     <div className="flex justify-between items-center text-slate-500 mb-2">
                       <div className="flex items-center gap-1.5 text-xs">
@@ -214,7 +326,6 @@ export const MenuView: React.FC = () => {
           <button onClick={() => dispatch({ type: 'CLEAR_CART' })} className="text-xs text-rose-500 hover:text-rose-400">Bersihkan</button>
         </div>
         
-        {/* Cart Items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {state.cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center text-slate-600">
@@ -236,7 +347,6 @@ export const MenuView: React.FC = () => {
           )}
         </div>
 
-        {/* Cart Footer */}
         {state.cart.length > 0 && (
           <div className="p-4 border-t border-slate-800 bg-slate-900 space-y-4">
             <div className="flex justify-between items-center">
@@ -254,6 +364,7 @@ export const MenuView: React.FC = () => {
       </div>
 
       <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} cart={state.cart} total={cartTotal} />
+      {selectedTable && <TableManagementModal table={selectedTable} onClose={() => setSelectedTable(null)} />}
     </div>
   );
 };
