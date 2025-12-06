@@ -1,9 +1,11 @@
 
 
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Delete, User as UserIcon, LogIn, Shield, Store } from 'lucide-react';
 import { User, Role } from '../types';
+import { APP_LOGO_COLOR_BASE64 } from '../constants';
 
 export const Login: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -59,31 +61,19 @@ export const Login: React.FC = () => {
              <div className="absolute bottom-20 right-20 w-64 h-64 bg-cyan-500 rounded-full blur-[100px]"></div>
           </div>
           
-          <div className="z-10">
-            <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2">ZYRA KASIR</h1>
-            <p className="text-slate-400">Sistem Kasir Profesional</p>
+          <div className="z-10 flex-1 flex items-center justify-center">
+            <img src={APP_LOGO_COLOR_BASE64} alt="Zyra Billiard & Coffee" className="w-auto h-64 object-contain" />
           </div>
 
-          <div className="z-10 space-y-4 text-slate-400 text-sm">
-            <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500"><Shield size={16}/></div>
-               <span>Login Aman untuk Admin & Kasir</span>
-            </div>
-            <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500"><Store size={16}/></div>
-               <span>Dioptimalkan untuk iPad Pro / Tablet</span>
-            </div>
-          </div>
-
-          <div className="z-10 text-xs text-slate-600">
-             © 2024 ZYRA KASIR. Versi 1.0
+          <div className="z-10 text-xs text-slate-600 text-center">
+             © 2024 Zyra Billiard dan Kopi.
           </div>
         </div>
 
         {/* Right Side: Login Form */}
         <div className="p-6 md:p-8 flex flex-col bg-slate-900 w-full">
-            <div className="md:hidden mb-6 text-center">
-                <h1 className="text-2xl font-bold text-white">ZYRA KASIR</h1>
+            <div className="md:hidden mb-6 flex justify-center">
+                <img src={APP_LOGO_COLOR_BASE64} alt="Zyra Billiard & Coffee" className="h-24 w-auto object-contain" />
             </div>
 
             <div className="mb-6 text-center">

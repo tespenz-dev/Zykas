@@ -1,9 +1,11 @@
 
 
+
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Role } from '../types';
 import { LayoutDashboard, LogOut, UtensilsCrossed, History, Box, Cloud, RefreshCw, CheckCircle, AlertCircle, Lock, Unlock } from 'lucide-react';
+import { APP_LOGO_COLOR_BASE64 } from '../constants';
 
 interface SidebarProps {
   currentView: string;
@@ -53,8 +55,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
     <div className="w-full h-16 md:h-full bg-slate-900 md:w-24 border-t md:border-t-0 md:border-r border-slate-800 flex flex-row md:flex-col items-center justify-between md:justify-start md:py-8 px-2 md:px-0 shadow-2xl md:shadow-none z-50">
       {/* Brand Icon */}
       <div className="hidden md:block mb-8">
-        <div className="w-12 h-12 bg-gradient-to-tr from-emerald-400 to-cyan-500 rounded-xl shadow-lg shadow-emerald-900/50 flex items-center justify-center text-slate-900 font-bold text-xl">
-            ZK
+        <div className="w-14 h-14 bg-slate-950 p-1 rounded-xl shadow-lg flex items-center justify-center">
+            <img src={APP_LOGO_COLOR_BASE64} alt="Logo" className="w-full h-full object-cover rounded-md" />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useReducer, ReactNode, useEffect, useState, useRef } from 'react';
 import { AppAction, AppState, TableStatus, Transaction, ProductCategory, CashierShift, CartItem } from '../types';
 import { INITIAL_PRODUCTS as MOCK_PRODUCTS, INITIAL_TABLES as MOCK_TABLES, INITIAL_USERS as MOCK_USERS, BILLIARD_HOURLY_RATE } from '../constants';
@@ -14,10 +15,10 @@ const initialState: AppState = {
   users: MOCK_USERS,
   settings: {
     googleScriptUrl: 'https://script.google.com/macros/s/AKfycbzcv_DIzZLa8iNN1a4dwaZSK9XzKi_LAClLLyQOlGt0505OSPOcQJK_rQBpp7_7mfuXOQ/exec', 
-    storeName: 'ZYRA KASIR',
-    storeAddress: 'Jl. Contoh No. 123, Kota Fiktif', // Default address
-    storePhone: '0812-3456-7890', // Default phone
-    customReceiptFooter: 'Terima Kasih!' // Default custom footer
+    storeName: 'Zyra Billiard dan Kopi',
+    storeAddress: 'Jln raya depan karangtinggil - pucuk',
+    storePhone: '085117310258',
+    customReceiptFooter: 'Reservasi & Info: 085117310258'
   },
   lastUpdated: Date.now()
 };
@@ -52,6 +53,7 @@ const loadState = (defaultState: AppState): AppState => {
             ...defaultSettings,
             ...(parsed.settings || {}),
             googleScriptUrl: parsed.settings?.googleScriptUrl || defaultSettings.googleScriptUrl,
+            storeName: parsed.settings?.storeName || defaultSettings.storeName, // Migrate new setting
             storeAddress: parsed.settings?.storeAddress || defaultSettings.storeAddress, // Migrate new setting
             storePhone: parsed.settings?.storePhone || defaultSettings.storePhone,       // Migrate new setting
             customReceiptFooter: parsed.settings?.customReceiptFooter || defaultSettings.customReceiptFooter // Migrate new setting
