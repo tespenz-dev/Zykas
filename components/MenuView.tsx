@@ -20,9 +20,12 @@ const TableCard: React.FC<{
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (table.status === TableStatus.OCCUPIED && table.startTime) {
+      // Calculate immediately
       setElapsed(Math.floor((Date.now() - table.startTime) / 1000));
+      
       interval = setInterval(() => {
-        setElapsed(Math.floor((Date.now() - table.startTime!) / 1000));
+        const now = Date.now();
+        setElapsed(Math.floor((now - table.startTime!) / 1000));
       }, 1000);
     } else {
       setElapsed(0);
@@ -51,6 +54,7 @@ const TableCard: React.FC<{
           if (table.status === TableStatus.AVAILABLE) onSelect(table);
       }}
     >
+      {/* Header */}
       <div className="flex justify-between items-start mb-2 relative z-10">
         <h3 className="text-lg md:text-xl font-bold text-white leading-none truncate pr-2">{table.name}</h3>
         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 ${
@@ -60,6 +64,7 @@ const TableCard: React.FC<{
         </span>
       </div>
 
+      {/* Info Body */}
       {table.status === TableStatus.OCCUPIED ? (
         <div className="space-y-1 relative z-10">
           <div className="text-white text-xs md:text-sm font-medium truncate flex items-center gap-1">
@@ -82,6 +87,7 @@ const TableCard: React.FC<{
          </div>
       )}
 
+      {/* Action Buttons Overlay for Occupied */}
       {table.status === TableStatus.OCCUPIED && (
           <div className="mt-3 grid grid-cols-3 gap-2 relative z-20">
               <button 
@@ -108,12 +114,14 @@ const TableCard: React.FC<{
           </div>
       )}
       
+      {/* Background Number Watermark */}
       <div className="absolute bottom-2 right-2 text-6xl font-black text-slate-700/20 pointer-events-none z-0">
           {table.id}
       </div>
     </div>
   );
 }, (prevProps, nextProps) => {
+    // Custom comparison function for performance
     return (
         prevProps.table.id === nextProps.table.id &&
         prevProps.table.status === nextProps.table.status &&
@@ -142,122 +150,12 @@ const ProductCard: React.FC<{ product: Product; onClick: (p: Product) => void }>
             <Plus size={20} />
          </div>
     </div>
+    {/* Icon Watermark */}
     <div className="absolute -bottom-2 -right-2 text-slate-700/30">
         <Coffee size={72} />
     </div>
   </button>
 ));
-
-// --- Reusable Cart Panel Component ---
-const CartPanel: React.FC<{
-    customerName: string;
-    setCustomerName: (name: string) => void;
-    onCheckout: () => void;
-    isMobileDrawer?: boolean;
-    onClose?: () => void;
-}> = ({ customerName, setCustomerName, onCheckout, isMobileDrawer = false, onClose }) => {
-    const { state, dispatch } = useApp();
-    const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
-    const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
-    const isShiftActive = !!state.activeShift;
-
-    return (
-        <div className="flex flex-col h-full bg-slate-900">
-            {/* Header */}
-            <div className={`p-4 border-b border-slate-800 flex justify-between items-center ${isMobileDrawer ? 'bg-slate-900' : 'bg-transparent'}`}>
-                <div className="flex items-center gap-2 text-emerald-400">
-                    <ShoppingCart size={24} />
-                    <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
-                </div>
-                {isMobileDrawer && (
-                    <button onClick={onClose} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
-                        <ChevronRight size={24} />
-                    </button>
-                )}
-            </div>
-
-            {/* Operator Info & Customer Name */}
-            <div className="px-4 pt-4">
-                <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
-                            <User size={20} />
-                        </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
-                            <div className="text-white font-bold text-sm">{state.user?.name}</div>
-                        </div>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
-                </div>
-                
-                <div className="mt-4">
-                    <input 
-                        type="text" 
-                        placeholder="Nama Pelanggan (Wajib untuk Meja)"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-4 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
-                    />
-                </div>
-            </div>
-
-            {/* Cart Items List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {state.cart.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
-                        <Coffee size={48} className="opacity-20" />
-                        <p className="text-sm">Keranjang kosong</p>
-                    </div>
-                ) : (
-                    state.cart.map((item, idx) => (
-                        <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all">
-                            <div>
-                                <div className="text-white font-medium text-sm line-clamp-1">{item.name}</div>
-                                <div className="text-xs text-slate-500">
-                                    {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="text-emerald-400 font-bold text-sm">
-                                    Rp {(item.price * item.quantity).toLocaleString()}
-                                </div>
-                                <button 
-                                    onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
-                                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 text-slate-500 flex items-center justify-center transition-colors"
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-slate-400 font-medium">Total Tagihan</span>
-                    <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
-                </div>
-                <button 
-                    onClick={onCheckout}
-                    disabled={!isShiftActive || state.cart.length === 0}
-                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
-                        !isShiftActive 
-                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                        : state.cart.length === 0 
-                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
-                    }`}
-                >
-                    {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
-                    {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
-                </button>
-            </div>
-        </div>
-    );
-};
 
 // --- Custom Payment Confirmation Modal ---
 interface PaymentConfirmationModalProps {
@@ -339,20 +237,26 @@ export const MenuView: React.FC = () => {
   const [activeTableId, setActiveTableId] = useState<number | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   
+  // Shift Modals
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
   const [startCashInput, setStartCashInput] = useState('');
 
+  // Table Action Modals
   const [showTableModal, setShowTableModal] = useState<'TOPUP' | 'MOVE' | null>(null);
   const [duration, setDuration] = useState(60);
   const [targetTableId, setTargetTableId] = useState<number | null>(null);
 
+  // Custom Payment Modals State
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [paymentStatusModal, setPaymentStatusModal] = useState<{ type: 'success' | 'error'; title: string; message: string; } | null>(null);
+
 
   const cartTotal = useMemo(() => state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [state.cart]);
   const cartCount = useMemo(() => state.cart.reduce((a, b) => a + b.quantity, 0), [state.cart]);
   const isShiftActive = !!state.activeShift;
+
+  // --- Handlers ---
 
   const handleOpenShift = (e: React.FormEvent) => {
       e.preventDefault();
@@ -414,6 +318,7 @@ export const MenuView: React.FC = () => {
         return;
     }
     
+    // Check if customer name is needed (if billiard item exists)
     const hasBilliard = state.cart.some(i => i.itemType === 'BILLIARD');
     if (hasBilliard && !customerName.trim()) {
        setPaymentStatusModal({ type: 'error', title: 'Nama Pelanggan Wajib', message: 'Nama Pelanggan wajib diisi untuk sewa meja.' });
@@ -424,8 +329,9 @@ export const MenuView: React.FC = () => {
   };
 
   const handleConfirmPayment = async () => {
-    setShowPaymentConfirmModal(false);
+    setShowPaymentConfirmModal(false); // Close confirmation modal
     
+    // Create a temporary transaction object for printing, as the state update is async.
     const transactionToPrint: Transaction = {
         id: `TX-${Date.now()}`,
         date: new Date().toISOString(),
@@ -447,6 +353,7 @@ export const MenuView: React.FC = () => {
         cashierName: state.user?.name || 'Unknown',
     };
 
+    // Dispatch checkout action to update state
     dispatch({ 
       type: 'CHECKOUT', 
       payload: { 
@@ -458,6 +365,7 @@ export const MenuView: React.FC = () => {
     setCustomerName('');
     setIsCartOpen(false);
 
+    // After state is dispatched, try to print.
     try {
         await printReceipt(receiptData);
         setPaymentStatusModal({ type: 'success', title: 'Transaksi Berhasil!', message: 'Struk telah dicetak.' });
@@ -467,6 +375,7 @@ export const MenuView: React.FC = () => {
     }
   };
 
+  // Filter Logic (Memoized to prevent recalc on every render)
   const filteredProducts = useMemo(() => state.products.filter(p => 
       (activeTab === 'ALL' || p.category === activeTab) &&
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -478,14 +387,16 @@ export const MenuView: React.FC = () => {
   ), [state.tables, searchTerm]);
 
   return (
-    <div className="flex h-full overflow-hidden relative">
+    <div className="flex flex-col h-full overflow-hidden relative">
       
-      {/* --- Main Content Area (Left Side) --- */}
+      {/* --- Main Content: Menu Grid (Full Width) --- */}
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950">
         
         {/* Header & Tabs */}
         <div className="p-3 md:p-6 shrink-0 bg-slate-950 z-20 space-y-3 md:space-y-4">
+            
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3">
+                 {/* Tabs (Left) Combined with Cashier Status */}
                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full items-center touch-pan-x">
                     <button 
                         onClick={() => setActiveTab('BILLIARD')}
@@ -506,7 +417,10 @@ export const MenuView: React.FC = () => {
                             {cat}
                         </button>
                     ))}
+
                     <div className="w-px h-6 bg-slate-800 mx-2 shrink-0"></div>
+
+                     {/* KASIR STATUS BUTTON */}
                      {isShiftActive ? (
                          <button 
                             onClick={() => setIsCloseShiftModalOpen(true)}
@@ -527,6 +441,7 @@ export const MenuView: React.FC = () => {
                  </div>
             </div>
 
+            {/* Search Bar */}
             <div className="relative max-w-2xl">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                 <input 
@@ -540,9 +455,10 @@ export const MenuView: React.FC = () => {
         </div>
 
         {/* Grid Content */}
-        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-0 pb-20 md:pb-6 scrollbar-hide touch-pan-y">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 pt-0 pb-20 scrollbar-hide touch-pan-y">
             {activeTab === 'BILLIARD' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                // Responsive Grid: 1 col (mobile), 2 (tablet), 3 (small desktop), 4 (large desktop)
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 pb-24">
                     {filteredTables.map(table => (
                         <TableCard 
                             key={table.id} 
@@ -555,7 +471,8 @@ export const MenuView: React.FC = () => {
                     ))}
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+                // Responsive Grid: 2 cols (mobile), 3 (tablet), 4 (small desktop), 5/6 (large desktop)
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-24">
                     {filteredProducts.map(product => (
                         <ProductCard key={product.id} product={product} onClick={handleAddToCart} />
                     ))}
@@ -563,52 +480,135 @@ export const MenuView: React.FC = () => {
             )}
         </div>
       </div>
-      
-      {/* --- Desktop Cart Sidebar (Right side) --- */}
-      <div className="hidden md:flex flex-col w-96 bg-slate-900 border-l border-slate-800 shrink-0">
-          <CartPanel
-              customerName={customerName}
-              setCustomerName={setCustomerName}
-              onCheckout={handleCheckoutInitiate}
-          />
-      </div>
 
-      {/* --- Mobile Floating Button and Drawer --- */}
-      <div className="md:hidden">
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="fixed right-4 bottom-20 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
-          >
-            <div className="relative">
-                <ShoppingCart size={28} className="group-hover:stroke-2" />
-                {cartCount > 0 && (
-                    <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
-                        {cartCount}
-                    </span>
-                )}
-            </div>
-          </button>
-          
-          {isCartOpen && (
-            <>
-                <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
-                    onClick={() => setIsCartOpen(false)}
-                />
-                <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm flex flex-col animate-slide-in-right">
-                    <CartPanel
-                        customerName={customerName}
-                        setCustomerName={setCustomerName}
-                        onCheckout={handleCheckoutInitiate}
-                        isMobileDrawer={true}
-                        onClose={() => setIsCartOpen(false)}
-                    />
+      {/* --- FLOATING CART BUTTON (Right Middle) --- */}
+      <button
+        onClick={() => setIsCartOpen(true)}
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-40 w-16 h-16 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-center transition-all hover:scale-110 active:scale-95 group border-2 border-slate-800"
+      >
+        <div className="relative">
+            <ShoppingCart size={28} className="group-hover:stroke-2" />
+            {cartCount > 0 && (
+                <span className="absolute -top-3 -right-3 bg-rose-500 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-slate-800 animate-bounce">
+                    {cartCount}
+                </span>
+            )}
+        </div>
+      </button>
+
+      {/* --- SLIDE-OVER CART DRAWER --- */}
+      {isCartOpen && (
+        <>
+            {/* Backdrop */}
+            <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity animate-fade-in"
+                onClick={() => setIsCartOpen(false)}
+            />
+            
+            {/* Drawer Panel */}
+            <div className="fixed inset-y-0 right-0 z-[60] w-full max-w-sm bg-slate-900 border-l border-slate-700 shadow-2xl flex flex-col animate-slide-in-right">
+                
+                {/* Drawer Header */}
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                    <div className="flex items-center gap-2 text-emerald-400">
+                        <ShoppingCart size={24} />
+                        <h2 className="font-bold text-lg">Keranjang ({cartCount})</h2>
+                    </div>
+                    <button 
+                        onClick={() => setIsCartOpen(false)}
+                        className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                    >
+                        <ChevronRight size={24} />
+                    </button>
                 </div>
-            </>
-          )}
-      </div>
+
+                {/* Operator Info */}
+                <div className="px-4 pt-4">
+                    <div className="flex items-center justify-between bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-400 font-bold border border-slate-600 shadow-sm">
+                                <User size={20} />
+                            </div>
+                            <div>
+                                <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Operator</div>
+                                <div className="text-white font-bold text-sm">{state.user?.name}</div>
+                            </div>
+                        </div>
+                        <div className={`w-3 h-3 rounded-full ${isShiftActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-rose-500'}`} title={isShiftActive ? 'Shift Aktif' : 'Shift Tutup'} />
+                    </div>
+                    
+                    <div className="mt-4">
+                        <input 
+                            type="text" 
+                            placeholder="Nama Pelanggan (Wajib untuk Meja)"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl py-3 px-4 text-sm text-white focus:border-emerald-500 outline-none transition-colors"
+                        />
+                    </div>
+                </div>
+
+                {/* Cart Items List */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {state.cart.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4">
+                            <Coffee size={48} className="opacity-20" />
+                            <p className="text-sm">Keranjang kosong</p>
+                        </div>
+                    ) : (
+                        state.cart.map((item, idx) => (
+                            <div key={idx} className="bg-slate-800/50 p-3 rounded-xl flex justify-between items-center group border border-transparent hover:border-slate-700 transition-all">
+                                <div>
+                                    <div className="text-white font-medium text-sm line-clamp-1">{item.name}</div>
+                                    <div className="text-xs text-slate-500">
+                                        {item.quantity} {item.itemType === 'BILLIARD' ? 'Jam' : 'x'} @ Rp {item.price.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-emerald-400 font-bold text-sm">
+                                        Rp {(item.price * item.quantity).toLocaleString()}
+                                    </div>
+                                    <button 
+                                        onClick={() => dispatch({ type: 'REMOVE_FROM_CART', payload: item.itemId })}
+                                        className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 text-slate-500 flex items-center justify-center transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="p-4 bg-slate-800 border-t border-slate-700 pb-safe">
+                    <div className="flex justify-between items-center mb-4">
+                        <span className="text-slate-400 font-medium">Total Tagihan</span>
+                        <span className="text-2xl font-bold text-emerald-400">Rp {cartTotal.toLocaleString()}</span>
+                    </div>
+                    
+                    <button 
+                        onClick={handleCheckoutInitiate} 
+                        disabled={!isShiftActive || state.cart.length === 0}
+                        className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
+                            !isShiftActive 
+                            ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                            : state.cart.length === 0 
+                                ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                                : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20 active:scale-95'
+                        }`}
+                    >
+                        {isShiftActive ? <CheckCircle size={20} /> : <Lock size={20} />}
+                        {isShiftActive ? 'Bayar Sekarang' : 'Buka Kasir Dulu'}
+                    </button>
+                </div>
+            </div>
+        </>
+      )}
 
       {/* --- MODALS --- */}
+
+      {/* 1. Modal Table Action (Topup/Move) */}
       {showTableModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fade-in">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-6">
@@ -659,6 +659,7 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
+      {/* 2. Modal BUKA KASIR (Open Shift) */}
       {isShiftModalOpen && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
               <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center">
@@ -690,6 +691,7 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
+      {/* 3. Modal TUTUP KASIR (Close Shift) */}
       {isCloseShiftModalOpen && state.activeShift && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
               <div className="bg-slate-900 border-2 border-slate-700 w-full max-w-sm rounded-3xl shadow-2xl p-8">
@@ -725,6 +727,7 @@ export const MenuView: React.FC = () => {
           </div>
       )}
 
+      {/* 4. Custom Payment Confirmation Modal */}
       {showPaymentConfirmModal && (
           <PaymentConfirmationModal
               total={cartTotal}
@@ -737,6 +740,7 @@ export const MenuView: React.FC = () => {
           />
       )}
 
+      {/* 5. Custom Payment Status Modal (Success/Error) */}
       {paymentStatusModal && (
           <StatusMessageModal
               type={paymentStatusModal.type}
